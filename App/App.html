@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat App</title>
+    <style>
+        /* 이 부분에 직접 CSS 코드를 추가하여 디자인을 입힐 수 있습니다. */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .chat-container {
+            display: flex;
+            width: 80%;
+            height: 90%;
+            background-color: #ffffff;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .chat-sidebar {
+            width: 300px;
+            border-right: 1px solid #e0e0e0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-main {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .new-chat-btn {
+            padding: 1rem;
+            margin: 1rem;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: bold;
+        }
+
+        .chat-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            overflow-y: auto;
+        }
+
+        .chat-item {
+            padding: 1rem;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .chat-item.active {
+            background-color: #f0f2f5;
+        }
+
+        .chat-item h3 {
+            margin: 0;
+            font-size: 1rem;
+        }
+        
+        .chat-item p {
+            margin: 0.5rem 0 0;
+            font-size: 0.8rem;
+            color: #888;
+        }
+
+        .chat-header {
+            padding: 1rem;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .chat-header h2 {
+            margin: 0;
+            font-size: 1.2rem;
+        }
+
+        .chat-messages {
+            flex-grow: 1;
+            padding: 1rem;
+            overflow-y: auto;
+        }
+        
+        .message-bubble {
+            background-color: #e4e6eb;
+            padding: 0.75rem 1rem;
+            border-radius: 18px;
+            margin-bottom: 10px;
+            max-width: 60%;
+        }
+
+        .chat-input {
+            border-top: 1px solid #e0e0e0;
+            padding: 1rem;
+            display: flex;
+            gap: 1rem;
+        }
+
+        .chat-input input {
+            flex-grow: 1;
+            border: 1px solid #ccc;
+            border-radius: 20px;
+            padding: 0.75rem 1rem;
+        }
+
+        .chat-input button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            padding: 0.75rem 1.5rem;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="chat-container">
+        <aside class="chat-sidebar">
+            <button class="new-chat-btn">+ 새 채팅</button>
+            <ul class="chat-list">
+                <li class="chat-item active">
+                    <h3>자주쓰는 채팅</h3>
+                    <p>마지막 메시지 내용...</p>
+                </li>
+                <li class="chat-item">
+                    <h3>새 채팅</h3>
+                    <p>마지막 메시지 내용...</p>
+                </li>
+                <li class="chat-item">
+                    <h3>공유</h3>
+                    <p>마지막 메시지 내용...</p>
+                </li>
+                <li class="chat-item">
+                    <h3>저장</h3>
+                    <p>마지막 메시지 내용...</p>
+                </li>
+                <li class="chat-item">
+                    <h3>휴지통</h3>
+                    <p>마지막 메시지 내용...</p>
+                </li>
+                <li class="chat-item">
+                    <h3>카테고리</h3>
+                    <p>마지막 메시지 내용...</p>
+                </li>
+            </ul>
+        </aside>
+
+        <main class="chat-main">
+            <header class="chat-header">
+                <h2>Alpha Bot</h2>
+            </header>
+            
+            <div class="chat-messages">
+                <div class="message-bubble">
+                    <p>안녕하세요. 무엇을 도와드릴까요?</p>
+                </div>
+                </div>
+
+            <div class="chat-input">
+                <input type="text" placeholder="메시지를 입력하세요..." />
+                <button>전송</button>
+            </div>
+        </main>
+    </div>
+
+</body>
+</html>
