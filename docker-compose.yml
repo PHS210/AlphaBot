@@ -1,0 +1,46 @@
+services:
+  # 1. 프론트엔드 개발 서버 서비스
+  frontend:
+    # 사용할 Dockerfile의 위치와 이름 지정
+    build:
+      context: ./alphabot-front # 프론트엔드 프로젝트 경로
+      dockerfile: Dockerfile.dev
+    container_name: alphabot-front-dev
+    working_dir: /app
+    # ✨✨✨ 핵심: 볼륨 마운트 ✨✨✨
+    # 로컬의 소스코드 폴더와 컨테이너 내부 폴더를 실시간으로 동기화합니다.
+    # 이제 로컬에서 코드를 수정하면 컨테이너에 즉시 반영됩니다.
+    volumes:
+      - ./alphabot-front:/app
+      # (팁) node_modules는 동기화에서 제외하여 충돌 방지 및 성능 향상
+      - /app/node_modules
+    # 포트 매핑: [로컬 PC 포트]:[컨테이너 포트] (React 기본 포트 3000 또는 Vite 5173)
+    ports:
+      - "5173:5173"
+    # 환경변수 설정 (Hot Reloading을 위해 필요할 수 있음)
+    environment:
+      - HOST=0.0.0.0
+      - PORT=5173
+      - CHOKIDAR_USEPOLLING=true
+
+  backend:
+    build:
+      context: ./alphabot-back # 백엔드 프로젝트 경로
+      dockerfile: Dockerfile
+    container_name: alphabot-back-dev
+    working_dir: /app
+    # ✨✨✨ 핵심: 볼륨 마운트 ✨✨✨
+    # 백엔드 소스코드도 실시간으로 동기화합니다.
+    volumes:
+      - ./alphabot-back/app:/app/app
+    # 포트 매핑
+    ports:
+      - "8080:8080"
+    env_file:
+      - ./.env
+    environment:
+      - PYTHONUNBUFFERED=1
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    # --reload 옵션을 추가하여 코드 변경 시 uvicorn 서버가 자동 재시작되도록 설정
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080", "--reload", "--log-level", "warning"]

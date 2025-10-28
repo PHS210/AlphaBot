@@ -3,7 +3,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
 from app.core.security import create_access_token, verify_password
-from app.db.session import get_db
+from app.db import get_db
 from app.schemas.auth_token import Token
 from app.crud import crud_user #user모델 직점참조에서 crud함수를 사용으로 변경
 

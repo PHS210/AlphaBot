@@ -1,9 +1,12 @@
 
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Input from '../components/common/Input';
 import Button from '../components/common/Button';
 
 const LoginPage: React.FC = () => {
+  const navigate = useNavigate();
+  
   // 아이디,비밀번호에 대한 state 관리 기능 구현
   // useState를 사용해 아이디와 비밀번호 값을 저장할 state를 만듬
   const [id, setId] = useState('');
@@ -31,6 +34,9 @@ const LoginPage: React.FC = () => {
     // 로그인 처리 로직. 현재는 그냥 콘솔출력만함.
     console.log('로그인 시도:', { id, password });
     alert(`${id}님, 환영합니다!`);
+    
+    // 로그인 성공 후 채팅 페이지로 이동
+    navigate('/chat');
   };
 
   return (

@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.security import oauth2_scheme
-from app.db.session import get_db
+from app.db import get_db
 from app.models import User
 # from app.routers.auth import get_user
 from app.schemas.auth_token import TokenData

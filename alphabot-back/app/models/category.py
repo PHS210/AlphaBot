@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer, String, DateTime, func
-from app.db.session import Base
+
+from app.models import Base
 
 
 class Category(Base):

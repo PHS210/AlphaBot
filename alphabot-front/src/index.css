@@ -3,12 +3,12 @@
   --color-panel: #141414;
   --color-card: #1A1A1A;
   --color-border: #262626;
-  --color-primary: #3366CC;
+  --color-primary: #4169E1;
   --color-text: #E6E6E6;
   --color-muted: #999999;
   --color-accent: #333333;
-  --color-bot-bg: #F2F2F2;
-  --color-bot-text: #333333;
+  --color-bot-bg: #E8E8E8;
+  --color-bot-text: #1a1a1a;
 }
 
 * {

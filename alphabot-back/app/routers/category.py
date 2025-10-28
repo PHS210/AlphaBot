@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 import math
 
-from app.db.session import get_db
+from app.db import get_db
 from app.crud.crud_category import category_crud
 from app.schemas.category import Category, CategoryCreate, CategoryUpdate, CategoryList
 from app.models.user import User

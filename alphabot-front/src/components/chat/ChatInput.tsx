@@ -21,7 +21,7 @@ export default function ChatInput({ value, onChange, onSubmit }: Props) {
         onChange={(e) => onChange(e.target.value)}
       />
       <button className="send-btn" type="submit" title="Send" aria-label="메시지 보내기">
-        ↗
+        ➤
       </button>
     </form>
   )

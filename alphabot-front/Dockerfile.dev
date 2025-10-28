@@ -1,0 +1,12 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+# 개발용: 호스트 코드를 볼륨으로 마운트하며, node_modules는 컨테이너 내부에 유지
+# 컨테이너 시작 시 의존성 설치 후 Vite 개발 서버 실행
+ENV HOST=0.0.0.0
+EXPOSE 5173
+
+CMD ["sh", "-c", "npm ci && npm run dev -- --host 0.0.0.0 --port ${PORT:-5173}"]
+
+
