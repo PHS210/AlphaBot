@@ -25,7 +25,7 @@ class TrashEnum(str, enum.Enum):
 role_enum = Enum(RoleEnum, name="role_enum", metadata=Base.metadata)
 trash_enum = Enum(TrashEnum, name="trash_enum", metadata=Base.metadata)
 
-
+#수정. 계획한 user 테이블에 맞게끔.
 class User(Base):
     __tablename__ = "users"
 
@@ -34,9 +34,10 @@ class User(Base):
         Sequence("users_user_id_seq", start=1, increment=1),
         primary_key=True,
     )
+    login_id: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)#추가
     username: Mapped[str] = mapped_column(String(50), nullable=False)
-    email: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
-    password: Mapped[str] = mapped_column(String(255), nullable=False)
+    #삭제 email: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
+    hashed_pw: Mapped[str] = mapped_column(String(255), nullable=False)#이름만 컬럼명과 동일하게 변경
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=False), server_default=func.now(), nullable=False
     )

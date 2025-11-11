@@ -23,7 +23,7 @@ def _engine_kwargs(database_url: str) -> Dict[str, Any]:
 engine = create_engine(settings.database_url, **_engine_kwargs(settings.database_url))
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False, future=True)
 
-
+ 
 def get_db():
     """FastAPI dependency that yields a database session."""
 

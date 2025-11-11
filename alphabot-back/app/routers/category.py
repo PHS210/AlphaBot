@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 import math
@@ -6,8 +6,8 @@ import math
 from app.db import get_db
 from app.crud.crud_category import category_crud
 from app.schemas.category import Category, CategoryCreate, CategoryUpdate, CategoryList
-from app.models.user import User
-from app.core.auth import require_admin_user
+from app.models.models import User
+from app.core.dependencies import require_admin_user # 현재 이함수는 없음 관리자라는 개념이 User 모델에 빠져있기 때문에 사용 불가가
 
 router = APIRouter()
 
@@ -39,7 +39,9 @@ def read_categories(
     db: Session = Depends(get_db),
     page: int = Query(1, ge=1, description="페이지 번호"),
     page_size: int = Query(10, ge=1, le=100, description="페이지 크기"),
-    search: str = Query(None, description="검색어")
+    search: str = Query(None, description="검색어"),
+    # --- 1. sort_by 쿼리 파라미터 추가 ---
+    sort_by: Optional[str] = Query(None, description="Sort by 'title' (asc) or 'created_at' (desc)")
 ) -> CategoryList:
     """모든 카테고리 목록 조회 (페이지네이션 및 검색 지원)"""
     
@@ -47,11 +49,13 @@ def read_categories(
     
     if search:
         categories = category_crud.search_categories(
-            db, search_term=search, skip=skip, limit=page_size
+            db, search_term=search, skip=skip, limit=page_size, sort_by=sort_by  # <-- 2. 파라미터 전달
         )
         total = len(category_crud.search_categories(db, search_term=search, skip=0, limit=1000))
     else:
-        categories = category_crud.get_multi_categories(db, skip=skip, limit=page_size)
+        categories = category_crud.get_multi_categories(
+            db, skip=skip, limit=page_size, sort_by=sort_by  # <-- 2. 파라미터 전달
+        )
         total = category_crud.get_count(db)
     
     total_pages = math.ceil(total / page_size) if total > 0 else 1
