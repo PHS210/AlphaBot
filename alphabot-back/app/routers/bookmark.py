@@ -22,6 +22,12 @@ router = APIRouter()
     response_model=BookmarkRead, 
     status_code=status.HTTP_201_CREATED
 )
+@router.post(
+    "",
+    response_model=BookmarkRead,
+    status_code=status.HTTP_201_CREATED,
+    include_in_schema=False,
+)
 def create_bookmark(
     *,
     db: Session = Depends(get_db),
@@ -41,6 +47,7 @@ def create_bookmark(
 
 
 @router.get("/", response_model=BookmarkList)
+@router.get("", response_model=BookmarkList, include_in_schema=False)
 def read_bookmarks(
     *,
     db: Session = Depends(get_db),

@@ -63,19 +63,19 @@ const ChatPage: React.FC = () => {
             <LogoIcon>💼</LogoIcon>
             <LogoText>Alpha Bot</LogoText>
           </Logo>
-
+          
           <HeaderRight>
-            {selectedStock && (
-              <SelectedStockInfo>
-                <StockBadge>
-                  <StockCode>{selectedStock.code}</StockCode>
-                  <StockName>{selectedStock.name}</StockName>
-                </StockBadge>
-                <ClearButton onClick={handleClearSelection} title="종목 선택 해제">
-                  ✕
-                </ClearButton>
-              </SelectedStockInfo>
-            )}
+          {selectedStock && (
+            <SelectedStockInfo>
+              <StockBadge>
+                <StockCode>{selectedStock.code}</StockCode>
+                <StockName>{selectedStock.name}</StockName>
+              </StockBadge>
+              <ClearButton onClick={handleClearSelection} title="종목 선택 해제">
+                ✕
+              </ClearButton>
+            </SelectedStockInfo>
+          )}
             <MyPageButton type="button" onClick={handleGoToMyPage}>
               <FaUser aria-hidden />
               <span>마이페이지</span>

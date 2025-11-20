@@ -1,4 +1,4 @@
-import { apiClient } from '@/lib/apiClient';
+import { apiFetch } from '@/api/client';
 
 export interface SignupPayload {
   login_id: string;
@@ -13,7 +13,9 @@ export interface SignupResponse {
 }
 
 export const signup = async (payload: SignupPayload): Promise<SignupResponse> => {
-  const response = await apiClient.post<SignupResponse>('/signup', payload);
-  return response.data;
+  return apiFetch<SignupResponse>('/api/signup', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
 };
 

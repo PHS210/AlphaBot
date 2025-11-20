@@ -212,7 +212,7 @@ export const BookmarkPage: React.FC = () => {
             
             <ModalButtons>
               <ModalButton 
-                primary 
+                $primary 
                 onClick={handleAddCategory}
                 disabled={createMutation.isPending} 
               >
@@ -472,10 +472,10 @@ const ModalButtons = styled.div`
   justify-content: flex-end;
 `;
 
-const ModalButton = styled.button<{ primary?: boolean }>`
+const ModalButton = styled.button<{ $primary?: boolean }>`
   padding: 10px 20px;
-  background: ${props => props.primary ? '#667eea' : '#e0e0e0'};
-  color: ${props => props.primary ? 'white' : '#666'};
+  background: ${props => props.$primary ? '#667eea' : '#e0e0e0'};
+  color: ${props => props.$primary ? 'white' : '#666'};
   border: none;
   border-radius: 8px;
   font-size: 14px;
@@ -484,7 +484,7 @@ const ModalButton = styled.button<{ primary?: boolean }>`
   transition: all 0.2s;
 
   &:hover {
-    background: ${props => props.primary ? '#5568d3' : '#d0d0d0'};
+    background: ${props => props.$primary ? '#5568d3' : '#d0d0d0'};
   }
 `;
 

@@ -182,8 +182,8 @@ export default function LeftSidebar({ selectedStockCode, onSelectStock }: Props)
         </Field>
         <FormActions>
           <NewChatButton type="submit" disabled={creating}>
-            {creating ? '생성 중...' : '+ 새 채팅'}
-          </NewChatButton>
+        {creating ? '생성 중...' : '+ 새 채팅'}
+      </NewChatButton>
           <SecondaryButton type="button" onClick={resetNewChatForm} disabled={creating}>
             초기화
           </SecondaryButton>
@@ -233,8 +233,8 @@ export default function LeftSidebar({ selectedStockCode, onSelectStock }: Props)
             </RenameForm>
           ) : (
             <>
-              <ChatTitle>{chat.title || chat.stock_code}</ChatTitle>
-              <ChatMeta>{chat.stock_code}</ChatMeta>
+          <ChatTitle>{chat.title || chat.stock_code}</ChatTitle>
+          <ChatMeta>{chat.stock_code}</ChatMeta>
               <CardActions>
                 <EditButton
                   type="button"
