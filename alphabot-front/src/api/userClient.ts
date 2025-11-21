@@ -1,4 +1,4 @@
-import { apiClient } from '@/lib/apiClient';
+import { apiFetch } from '@/api/client';
 
 // 사용자 정보 타입
 export interface User {
@@ -21,18 +21,23 @@ export interface PasswordChangePayload {
 
 // 1. 내 정보 가져오기
 export const getMe = async (): Promise<User> => {
-  const response = await apiClient.get<User>('/users/me');
-  return response.data;
+  return apiFetch<User>('/api/users/me', { method: 'GET' });
 };
 
 // 2. 프로필 수정하기
 export const updateProfile = async (payload: UserUpdatePayload): Promise<User> => {
-  const response = await apiClient.patch<User>('/users/me', payload);
-  return response.data;
+  return apiFetch<User>('/api/users/me', {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
 };
 
 // 3. 비밀번호 변경하기
-export const changePassword = async (payload: PasswordChangePayload): Promise<{ message: string }> => {
-  const response = await apiClient.put<{ message: string }>('/users/me/password', payload);
-  return response.data;
+export const changePassword = async (
+  payload: PasswordChangePayload,
+): Promise<{ message: string }> => {
+  return apiFetch<{ message: string }>('/api/users/me/password', {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
 };
