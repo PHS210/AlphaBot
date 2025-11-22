@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List, Tuple, Optional
+from typing import Any, List, Tuple, Optional
 
 import os
 import re
@@ -23,11 +23,65 @@ except Exception:  # pragma: no cover - openai 미설치/런타임 환경 보호
     OpenAI = None  # type: ignore
 
 
-_OPENAI_MODEL_DEFAULT = os.getenv("OPENAI_MODEL", "gpt-5")  # 기본 모델
+_OPENAI_MODEL_DEFAULT = os.getenv("OPENAI_MODEL", "gpt-4o-mini")  # 기본 모델
 _OPENAI_TEMPERATURE_DEFAULT = float(os.getenv("OPENAI_TEMPERATURE", "0.2"))  # 샘플링 온도
 _OPENAI_MAX_TOKENS_DEFAULT = int(os.getenv("OPENAI_MAX_TOKENS", "512"))  # 최대 토큰 수
 
 _STOCK_CODE_PATTERN = re.compile(r'^[A-Z0-9.\-]{1,20}$')
+
+_RESPONSES_ONLY_PREFIXES = (
+    "gpt-4.1",
+    "gpt-5",
+    "o4",
+    "o5",
+    "o1",
+)
+
+
+def _should_use_responses_api(model: str) -> bool:
+    """Responses API 전용 모델인지 간단한 문자열 규칙으로 판별합니다."""
+    normalized = (model or "").lower()
+    return normalized.startswith(_RESPONSES_ONLY_PREFIXES)
+
+
+def _format_messages_for_responses(messages: List[dict]) -> List[dict]:
+    """Chat completions 포맷을 Responses API 입력 포맷으로 변환합니다."""
+    formatted: List[dict] = []
+    for msg in messages:
+        formatted.append(
+            {
+                "role": msg.get("role", "user"),
+                "content": [
+                    {
+                        "type": "text",
+                        "text": msg.get("content", ""),
+                    }
+                ],
+            }
+        )
+    return formatted
+
+
+def _extract_text_from_responses(resp: Any) -> str:
+    """Responses API 응답 객체에서 텍스트를 추출합니다."""
+    outputs = getattr(resp, "output", None) or []
+    for output in outputs:
+        if getattr(output, "type", None) != "message":
+            continue
+        contents = getattr(output, "content", None) or []
+        for content in contents:
+            if getattr(content, "type", None) == "text":
+                text = getattr(content, "text", None)
+                if text:
+                    return text
+    # SDK가 `output_text` 헬퍼를 제공하는 경우 사용
+    fallback = getattr(resp, "output_text", None)
+    if fallback:
+        return str(fallback)
+    raise HTTPException(
+        status_code=status.HTTP_502_BAD_GATEWAY,
+        detail="OpenAI returned empty response",
+    )
 
 def _get_openai_client() -> "OpenAI":
     """환경 변수에서 키를 읽어 OpenAI 클라이언트를 생성합니다. 사용 불가 시 500 오류를 발생시킵니다."""
@@ -98,26 +152,37 @@ def _call_openai_chat(
     client = _get_openai_client()
 
     try:
+        if _should_use_responses_api(model):
+            responses_input = _format_messages_for_responses(messages)
+            resp = client.responses.create(
+                model=model,
+                input=responses_input,
+                temperature=temperature,
+                max_output_tokens=max_tokens,
+            )
+            return _extract_text_from_responses(resp)
+
         resp = client.chat.completions.create(
             model=model,
             messages=messages,
             temperature=temperature,
             max_tokens=max_tokens,
         )
+        choice = resp.choices[0] if resp.choices else None
+        content = choice.message.content if choice and choice.message else None
+        if not content:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="OpenAI returned empty response",
+            )
+        return content
+    except HTTPException:
+        raise
     except Exception as exc:  # pragma: no cover - network failures
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"OpenAI chat completion failed: {exc}",
         )
-
-    choice = resp.choices[0] if resp.choices else None
-    content = choice.message.content if choice and choice.message else None
-    if not content:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="OpenAI returned empty response",
-        )
-    return content
 
 
 def save_user_message(
