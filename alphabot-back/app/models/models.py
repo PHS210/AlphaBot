@@ -44,6 +44,8 @@ class User(Base):
     bookmarks = relationship("Bookmark", back_populates="user", cascade="all, delete")
     # 'fk_category_user_id' FK에 대응
     categories = relationship("Category", back_populates="user", cascade="all, delete")
+    # 'fk_comment_user_id' FK에 대응
+    comments = relationship("Comment", back_populates="user", cascade="all, delete")
 
     def __repr__(self):
         return f"<User(user_id={self.user_id}, login_id='{self.login_id}')>"
@@ -218,6 +220,7 @@ class Stock(Base):
     # --- Relationships ---
     # Stock(1)이 FinancialStatement(N)를 가짐
     financial_statements = relationship("FinancialStatement", back_populates="stock", cascade="all, delete")
+    comments = relationship("Comment", back_populates="stock", cascade="all, delete")
 
     def __repr__(self):
         return f"<Stock(code='{self.code}', company_name='{self.company_name}')>"
@@ -267,3 +270,24 @@ class FinancialStatement(Base):
 
     def __repr__(self):
         return f"<FinancialStatement(stock_code='{self.stock_code}', period='{self.report_period}')>"
+    
+
+class Comment(Base):
+    __tablename__ = 'comments'
+    __table_args__ = {'schema': 'public'}
+
+    comment_id = Column(Integer, primary_key=True, autoincrement=True)
+    # 작성자 (User) 연결
+    user_id = Column(Integer, ForeignKey('public.users.user_id', ondelete="CASCADE"), nullable=False)
+    # 종목 (Stock) 연결
+    stock_code = Column(String(20), ForeignKey('public.stocks.code', ondelete="CASCADE"), nullable=False)
+    
+    content = Column(Text, nullable=False)
+    created_at = Column(TIMESTAMP, server_default=func.now())
+
+    # --- Relationships ---
+    user = relationship("User", back_populates="comments")
+    stock = relationship("Stock", back_populates="comments")
+
+    def __repr__(self):
+        return f"<Comment(comment_id={self.comment_id}, stock_code='{self.stock_code}')>"

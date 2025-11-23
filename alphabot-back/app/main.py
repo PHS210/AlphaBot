@@ -9,7 +9,7 @@ from sqlalchemy import text
 from sqlalchemy.engine import Engine
 
 from app.db import engine, get_db, Base
-from app.routers import auth, chat, user, category, bookmark
+from app.routers import auth, chat, user, category, bookmark, comment
 
 app = FastAPI()
 
@@ -68,6 +68,7 @@ app.include_router(auth.router, prefix="/api", tags=["Auth"])
 app.include_router(chat.router, prefix="/api", tags=["Chat"])
 app.include_router(category.router, prefix="/api/categories", tags=["Categories"])
 app.include_router(bookmark.router, prefix="/api/bookmarks", tags=["Bookmarks"])
+app.include_router(comment.router, prefix="/api/comments", tags=["Comments"])
 
 # 모든 경로 index.html 반환
 @app.get("/{full_path:path}", include_in_schema=False)
