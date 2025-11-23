@@ -1,42 +1,33 @@
 /**
- * @file src/components/category/category.types.ts
- * @description 카테고리 기능 관련 모든 타입 정의
- */
-
-/**
  * (GET) /api/categories/{id} 응답
  * (POST, PUT) /api/categories 응답
  */
 export interface Category {
   id: number;
   title: string;
-  item_count: number;  // 👈 이슈의 UI 구현에 필요
+  item_count: number;
   created_at: string;
-  color?: string;       // 👈 BookmarkPage에서 UI용으로 사용
+  color?: string; 
+  // 백엔드에서 category_id로 줄 수도 있으므로 선택적 속성 추가
+  category_id?: number;
 }
 
 /**
- * (GET) /api/categories 응답 (목록)
- * [수정] 'items' 속성을 명시적으로 포함합니다.
+ * (GET) /api/categories 응답 (목록 조회)
+ * [수정] 백엔드 응답인 'categories' 키를 추가했습니다.
  */
 export interface CategoryList {
-  items: Category[];
+  categories: Category[]; // 👈 [핵심 수정] 실제 API 응답 키
+  items?: Category[];     // (호환성을 위해 남겨둠)
   total: number;
   page: number;
   page_size: number;
 }
 
-/**
- * (POST, PUT) /api/categories 요청 본문 (DTO)
- */
 export interface CategoryCreateUpdateDTO {
   title: string;
 }
 
-/**
- * (GET) /api/categories 쿼리 파라미터
- * (useCategories 훅에서 이 타입을 사용합니다)
- */
 export interface CategoryQuery {
   page: number;
   page_size: number;
