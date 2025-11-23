@@ -85,7 +85,10 @@ const ChatPage: React.FC = () => {
       </ChatHeader>
 
       <MainContent>
-        <LeftSidebar />
+        <LeftSidebar
+          selectedStockCode={selectedStock?.code}
+          onSelectStock={handleSelectStock}
+        />
         <ChatArea stockCode={selectedStock?.code} />
         <RightMenu onSelectStock={handleSelectStock} />
       </MainContent>
