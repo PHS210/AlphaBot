@@ -1,6 +1,7 @@
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
+from sqlalchemy import desc
 
 from app.core.dependencies import get_current_user
 from app.db import get_db
@@ -14,7 +15,10 @@ from app.schemas.chats import (
     ChatCompletionRequest,
     ChatCompletionResponse,
 )
-from app.models.models import User, Chat, Message, TrashEnum
+# [추가] RoleEnum 추가
+from app.models.models import User, Chat, Message, TrashEnum ,RoleEnum
+# [추가] RAG 서비스 임포트
+from app.services.rag_service import RAGService
 from app.services.chat_service import (
     normalize_stock_code,
     upsert_chat_by_stock,
@@ -23,6 +27,9 @@ from app.services.chat_service import (
 )
 
 router = APIRouter(tags=["chat"])
+
+# [추가] RAG 서비스 인스턴스 생성
+rag_client = RAGService()
 
 
 @router.post("/rooms/{room_id}/messages", response_model=MessageRead)
@@ -42,21 +49,66 @@ def create_message(
     response_model=ChatCompletionResponse,
     status_code=status.HTTP_201_CREATED,
 )
+# [수정] RAG 서비스를 이용하여 답변을 생성
 def create_message_with_openai(
     room_id: int,
     request: ChatCompletionRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """사용자 메시지를 저장하고 OpenAI 응답을 생성하여 함께 반환"""
-    user_message, assistant_message = create_message_and_reply(
+    """
+    사용자 메시지 저장하고 RAG 분석을 통해 OpenAI 응답 생성하여 반환
+    """
+    # 1. 채팅방 정보 조회 (종목 코드를 알기 위해 필요)
+    chat_room = db.query(Chat).filter(Chat.chat_id == room_id).first()
+    if not chat_room:
+        raise HTTPException(status_code=404, detail="Chat room not found")
+    
+    # 2. 사용자 메시지 DB에 우선 저장
+    user_msg = save_user_message(
         db,
         room_id=room_id,
         current_user=current_user,
-        message=MessageCreate(content=request.content),
-        system_prompt=request.system_prompt,
+        message=MessageCreate(content=request.content)
     )
-    return ChatCompletionResponse(user_message=user_message, assistant_message=assistant_message)
+
+    # 3. RAG 서비스 호출 (AI 답변 생성)
+    try:
+        rag_result = rag_client.chat_with_rag(
+            user_query=request.content,
+            user_id=str(current_user.user_id),
+            stock_code=chat_room.stock_code,
+            news_db=db, # 뉴스 벡터 데이터가 있는 DB (지금은 main DB와 공유)
+            main_db=db, # 사용자/채팅/주식 정보가 있는 DB
+        )
+        
+        ai_response_text = rag_result.get("response", "죄송합니다. 답변을 생성하지 못했습니다.")
+        
+    except Exception as e:
+        # RAG 실패 시 에러 로그 출력
+        print(f"RAG Error: {e}")
+        ai_response_text = "일시적인 오류로 AI 답변을 생성할 수 없습니다."
+
+    # 4. AI 답변(Assistant Message) DB에 저장
+    assistant_msg = Message(
+        chat_id=room_id,
+        user_id=current_user.user_id,
+        role=RoleEnum.assistant,
+        content=ai_response_text,
+    )
+    db.add(assistant_msg)
+    
+    # 채팅방의 마지막 대화 시간 업데이트
+    chat_room.lastchat_at = assistant_msg.created_at
+    
+    db.commit()
+    db.refresh(assistant_msg)
+
+    # 5. 결과 반환
+    return ChatCompletionResponse(
+        user_message=user_msg, 
+        assistant_message=assistant_msg
+    )
 
 
 @router.get("/rooms/{room_id}/messages", response_model=List[MessageRead])
@@ -84,7 +136,18 @@ def get_chat_rooms(
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """현재 사용자가 참여 중인 모든 채팅방 목록을 조회"""
-    chat_rooms = db.query(Chat).filter(Chat.user_id == current_user.user_id).all()
+    # [추가] 실제 메신저처럼 정렬 로직 적용
+    chat_rooms = (
+            db.query(Chat)
+            .filter(Chat.user_id == current_user.user_id)
+            # 1순위: 마지막 대화 시간(최신순), 대화 없으면(null) 뒤로 보냄
+            # 2순위: 대화 기록이 둘 다 없으면 방 생성 최신순
+            .order_by(
+                desc(Chat.lastchat_at).nulls_last(),
+                Chat.created_at.desc()
+            )
+            .all()
+        )
     return chat_rooms
 
 
@@ -95,7 +158,11 @@ def enter_chat_by_stock(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """사용자/종목 조합으로 채팅방을 조회하거나 생성 후 chat_id를 반환"""
+    # [추가] 설명 보충
+    """
+    사용자/종목 조합으로 채팅방을 조회하거나 생성 후 chat_id를 반환
+    (기존 방이 없으면 새로 생성하고, 휴지통으로 간 방은 자동으로 복구합니다.)
+    """
     try:
         normalized_code = normalize_stock_code(stock_code)
     except ValueError as exc:
@@ -135,7 +202,7 @@ def create_chat_room(
             .filter(
                 Chat.user_id == current_user.user_id,
                 Chat.stock_code == chat_in.stock_code,
-                Chat.trash_can == "in",
+                Chat.trash_can == "out", #[수정] in -> out
             )
             .first()
         )
@@ -165,7 +232,7 @@ def get_chat_room_by_stock(
         .filter(
             Chat.user_id == current_user.user_id,
             Chat.stock_code == stock_code,
-            Chat.trash_can == "in",
+            Chat.trash_can == "out", #[수정] in -> out
         )
         .first()
     )
@@ -211,3 +278,34 @@ def update_chat_room(
     db.commit()
     db.refresh(chat)
     return chat
+
+
+@router.delete("/rooms/{room_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_chat_room(
+    room_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    휴지통에 있는 채팅방을 완전히 삭제(trash_can 상태가 in인 경우 삭제)
+    """
+    
+    chat = (
+        db.query(Chat)
+        .filter(Chat.chat_id == room_id, Chat.user_id == current_user.user_id)
+        .first()
+    )
+
+    if not chat:
+        raise HTTPException(status_code=404, detail="Chat room not found")
+
+    if chat.trash_can == TrashEnum.out.value:
+        raise HTTPException(
+            status_code=400, 
+            detail="Active chat rooms cannot be deleted. Move to trash first."
+        )
+
+    db.delete(chat)
+    db.commit()
+    
+    return None

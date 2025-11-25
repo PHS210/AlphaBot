@@ -4,8 +4,8 @@ from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import func, text
 from dotenv import load_dotenv
-from aibackend.app.models.news_vector import chunkVector
-from aibackend.app.services.news_vector_service import get_news_db
+from app.models.news_vector import chunkVector
+from app.services.news_vector_service import get_news_db
 
 load_dotenv()
 
@@ -16,7 +16,7 @@ class RAGService:
             timeout=60.0
         )
         self.embedding_model = "text-embedding-3-small"
-        self.chat_model = "gpt-4o"
+        self.chat_model = "gpt-5-nano" #[수정] 모델 변경
     
     def get_embedding(self, text: str) -> List[float]:
         """텍스트를 임베딩 벡터로 변환"""
@@ -270,7 +270,7 @@ class RAGService:
             similar_docs = []
             if news_db and main_db:
                 # 기업 정보 가져오기
-                from ..models import Stock
+                from app.models.models import Stock #[수정] 경로 명확화
                 stock = main_db.query(Stock).filter(Stock.code == stock_code).first()
                 
                 # 다채로운 검색 쿼리 생성
@@ -413,7 +413,7 @@ class RAGService:
             # 재무 데이터 자동 가져오기 및 추가
             if main_db:
                 # 데이터베이스에서 재무 데이터 가져오기
-                from ..models import Stock, FinancialStatement, MarketIndicator, EarningsForecast
+                from app.models.models import Stock, FinancialStatement #[수정] 경로 명확화, 해당 모델 보류 MarketIndicator, EarningsForecast
                 
                 # 종목 기본 정보
                 stock = main_db.query(Stock).filter(Stock.code == stock_code).first()
@@ -423,15 +423,20 @@ class RAGService:
                         FinancialStatement.stock_code == stock_code
                     ).order_by(FinancialStatement.report_period.desc()).limit(4).all()
                     
-                    # 시장지표 (최신)
-                    latest_indicator = main_db.query(MarketIndicator).filter(
-                        MarketIndicator.stock_code == stock_code
-                    ).order_by(MarketIndicator.date.desc()).first()
+
+                    latest_indicator = None
+                    forecasts = []
+
+                    #[수정] models.py에 미구현 이므로 보류
+                    # # 시장지표 (최신)
+                    # latest_indicator = main_db.query(MarketIndicator).filter(
+                    #     MarketIndicator.stock_code == stock_code
+                    # ).order_by(MarketIndicator.date.desc()).first()
                     
-                    # 실적전망
-                    forecasts = main_db.query(EarningsForecast).filter(
-                        EarningsForecast.stock_code == stock_code
-                    ).order_by(EarningsForecast.fiscal_year.desc()).limit(3).all()
+                    # # 실적전망
+                    # forecasts = main_db.query(EarningsForecast).filter(
+                    #     EarningsForecast.stock_code == stock_code
+                    # ).order_by(EarningsForecast.fiscal_year.desc()).limit(3).all()
                     
                     # 재무 데이터 문자열 구성
                     financial_data_parts = []
@@ -632,7 +637,7 @@ class RAGService:
                 model=self.chat_model,
                 messages=messages,
                 temperature=0.4,
-                max_tokens=15000
+                max_completion_tokens=15000 #[수정]
             )
             print(f"GPT 분석 완료: {stock_code}", flush=True)
             
@@ -640,7 +645,10 @@ class RAGService:
             report_content = response.choices[0].message.content
             if main_db:
                 try:
-                    from ..models import Reports
+                    #[수정] Reports 모델이 없으므로 pass 처리
+                    #from ..models import Reports
+                    pass
+
                     from datetime import datetime
                     
                     # 새로운 보고서 생성
@@ -697,44 +705,69 @@ class RAGService:
             # userID로 사용자 테이블 ID 조회
             user_table_id = None
             if main_db and user_id:
-                from ..models import User
-                user = main_db.query(User).filter(User.userID == user_id).first()
+                from app.models.models import User #[수정] 경로 명확화
+                target_id = int(user_id)
+                user = main_db.query(User).filter(User.user_id == target_id).first() #[수정] User.userID -> User.user_id
                 if user:
-                    user_table_id = user.id
+                    user_table_id = user.user_id #[수정] user.id -> user.user_id
                     print(f"사용자 ID 조회 완료: {user_id} -> {user_table_id}", flush=True)
                 else:
                     print(f"사용자를 찾을 수 없음: {user_id}", flush=True)
             
             # 1. DB에서 채팅 내역 가져오기
             chat_history = []
-            if main_db and stock_code and user_table_id:
-                from ..models import ChatHistory
-                recent_chats = main_db.query(ChatHistory).filter(
-                    ChatHistory.user_id == user_table_id,
-                    ChatHistory.stock_code == stock_code
-                ).order_by(ChatHistory.created_at.desc()).limit(40).all()
-                
-                # 시간순으로 정렬 (오래된 것부터)
-                recent_chats.reverse()
-                chat_history = [
-                    {"role": chat.role.value, "content": chat.chat} 
-                    for chat in recent_chats
-                ]
-                print(f"가져온 채팅 내역 수: {len(chat_history)}", flush=True)
             
-            # 2. DB에서 주식 보고서 가져오기
-            stock_report = None
-            if main_db and stock_code:
-                from ..models import Reports
-                latest_report = main_db.query(Reports).filter(
-                    Reports.stock_code == stock_code
-                ).order_by(Reports.created_at.desc()).first()
+            if main_db and stock_code and user_table_id:
+                from app.models.models import Message, Chat, RoleEnum #[수정] 경로 명확화
                 
-                if latest_report:
-                    stock_report = latest_report.report
-                    print(f"주식 보고서 찾음: {stock_code}", flush=True)
-                else:
-                    print(f"주식 보고서 없음: {stock_code}", flush=True)
+                # 1. 해당 종목의 채팅방 찾기
+                chat_room = main_db.query(Chat).filter(
+                    Chat.user_id == user_table_id,
+                    Chat.stock_code == stock_code
+                ).first()
+
+                if chat_room:
+                    # 2. 해당 방의 메시지 조회 (최신순 40개)
+                    recent_messages = main_db.query(Message).filter(
+                        Message.chat_id == chat_room.chat_id
+                    ).order_by(Message.created_at.desc()).limit(40).all()
+                    
+                    # 3. 시간순 정렬 (오래된 것 -> 최신)
+                    recent_messages.reverse()
+                    
+                    # 4. [수정됨] 데이터를 하나씩 꺼내서 변환 후 담기
+                    for msg in recent_messages:
+                        # RoleEnum 타입 체크 (Enum이면 .value 사용, 아니면 문자열 변환)
+                        if hasattr(msg.role, "value"):
+                            role_value = msg.role.value
+                        else:
+                            role_value = str(msg.role)
+
+                        # 딕셔너리로 만들어서 리스트에 추가
+                        chat_history.append({
+                            "role": role_value,
+                            "content": msg.content
+                        })
+                    
+                    print(f"가져온 채팅 내역 수: {len(chat_history)}", flush=True)
+            
+            # 임시로 사용
+            stock_report = None
+
+            # [수정] report 미구현
+            # # 2. DB에서 주식 보고서 가져오기
+            # stock_report = None
+            # if main_db and stock_code:
+            #     from ..models import Reports
+            #     latest_report = main_db.query(Reports).filter(
+            #         Reports.stock_code == stock_code
+            #     ).order_by(Reports.created_at.desc()).first()
+                
+            #     if latest_report:
+            #         stock_report = latest_report.report
+            #         print(f"주식 보고서 찾음: {stock_code}", flush=True)
+            #     else:
+            #         print(f"주식 보고서 없음: {stock_code}", flush=True)
             
             # 3. 사용자 질문과 관련된 뉴스 검색
             similar_docs = []
@@ -823,7 +856,7 @@ class RAGService:
                 model=self.chat_model,
                 messages=messages,
                 temperature=0.4,
-                max_tokens=10000,
+                max_completion_tokens=10000, #[수정]
                 timeout=30
             )
             print("GPT 채팅 응답 생성 완료", flush=True)
@@ -855,8 +888,9 @@ class RAGService:
                 "error": str(e)
             }
 
-# 전역 RAG 서비스 인스턴스 - 새로운 리팩토링된 구조 사용
-from .rag import rag_orchestrator as rag_service
+#[수정] 이부분은 일단 주석처리
+# # 전역 RAG 서비스 인스턴스 - 새로운 리팩토링된 구조 사용
+# from .rag import rag_orchestrator as rag_service
 
-# 호환성을 위한 클래스 별칭
-RAGService = type(rag_service) 
+# # 호환성을 위한 클래스 별칭
+# RAGService = type(rag_service) 

@@ -10,6 +10,7 @@ from sqlalchemy.engine import Engine
 
 from app.db import engine, get_db, Base
 from app.routers import auth, chat, user, category, bookmark, comment
+from app.models import news_vector #추가
 
 app = FastAPI()
 
