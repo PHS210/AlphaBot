@@ -12,7 +12,8 @@ import MyPage from './pages/MyPage';
 import BookmarkPage from './pages/BookmarkPage';
 import TrashPage from './pages/TrashPage';
 import LoginScreen from './pages/LoginScreen'; 
-import { CategoryAdminPage } from './pages/CategoryAdminPage'; 
+import { CategoryAdminPage } from './pages/CategoryAdminPage';
+import StockDiscussionPage from './pages/StockDiscussionPage'; 
 
 const queryClient = new QueryClient();
 
@@ -32,6 +33,8 @@ function App() {
           <Route path="/mypage" element={<MyPage />} />
           <Route path="/bookmarks" element={<BookmarkPage />} />
           <Route path="/trash" element={<TrashPage />} />
+          <Route path="/discussion" element={<StockDiscussionPage />} />
+          <Route path="/discussion/:stockCode" element={<StockDiscussionPage />} />
           <Route path="/login-screen" element={<LoginScreen />} />
         </Routes>
       </BrowserRouter>

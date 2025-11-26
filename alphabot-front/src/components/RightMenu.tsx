@@ -2,14 +2,16 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import Button from './Button/Button'; 
-import { FaBars, FaHistory, FaTrash, FaSignOutAlt, FaBookmark } from 'react-icons/fa';
+import { FaBars, FaHistory, FaTrash, FaSignOutAlt, FaBookmark, FaComments } from 'react-icons/fa';
 import StockSearch from './StockSearch';
 
 interface RightMenuProps {
   onSelectStock?: (stock: any) => void;
+  selectedStockCode?: string | null;
+  selectedStockName?: string | null;
 }
 
-export default function RightMenu({ onSelectStock }: RightMenuProps) {
+export default function RightMenu({ onSelectStock, selectedStockCode }: RightMenuProps) {
   const navigate = useNavigate();
   const [showStockSearch, setShowStockSearch] = useState(false);
 
@@ -65,6 +67,20 @@ export default function RightMenu({ onSelectStock }: RightMenuProps) {
         onClick={() => navigate('/bookmarks')}
       >
         <FaBookmark /> 저장된 메시지
+      </Button>
+
+      <Button 
+        variant="primary" 
+        size="medium" 
+        onClick={() => {
+          if (selectedStockCode) {
+            navigate(`/discussion/${selectedStockCode}`)
+          } else {
+            navigate('/discussion')
+          }
+        }}
+      >
+        <FaComments /> 종목 토론
       </Button>
 
       <Button 

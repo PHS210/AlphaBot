@@ -90,7 +90,11 @@ const ChatPage: React.FC = () => {
           onSelectStock={handleSelectStock}
         />
         <ChatArea stockCode={selectedStock?.code} />
-        <RightMenu onSelectStock={handleSelectStock} />
+        <RightMenu
+          onSelectStock={handleSelectStock}
+          selectedStockCode={selectedStock?.code}
+          selectedStockName={selectedStock?.name}
+        />
       </MainContent>
     </Container>
   );
