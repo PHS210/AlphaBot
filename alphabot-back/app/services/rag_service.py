@@ -1,11 +1,11 @@
-import openai
+import openai  # type: ignore[import-not-found]
 import os
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import func, text
 from dotenv import load_dotenv
-from aibackend.app.models.news_vector import chunkVector
-from aibackend.app.services.news_vector_service import get_news_db
+from app.models.news_vector import chunkVector
+from app.services.news_vector_service import get_news_db
 
 load_dotenv()
 
@@ -16,7 +16,7 @@ class RAGService:
             timeout=60.0
         )
         self.embedding_model = "text-embedding-3-small"
-        self.chat_model = "gpt-4o"
+        self.chat_model = "gpt-5-mini"
     
     def get_embedding(self, text: str) -> List[float]:
         """텍스트를 임베딩 벡터로 변환"""
@@ -855,8 +855,4 @@ class RAGService:
                 "error": str(e)
             }
 
-# 전역 RAG 서비스 인스턴스 - 새로운 리팩토링된 구조 사용
-from .rag import rag_orchestrator as rag_service
-
-# 호환성을 위한 클래스 별칭
-RAGService = type(rag_service) 
+rag_service = RAGService()

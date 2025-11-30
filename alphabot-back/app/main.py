@@ -70,9 +70,9 @@ app.include_router(category.router, prefix="/api/categories", tags=["Categories"
 app.include_router(bookmark.router, prefix="/api/bookmarks", tags=["Bookmarks"])
 app.include_router(comment.router, prefix="/api/comments", tags=["Comments"])
 
-# 모든 경로 index.html 반환
-@app.get("/{full_path:path}", include_in_schema=False)
-def serve_react_app_catch_all(full_path: str):
+# 루트 경로 처리
+@app.get("/", include_in_schema=False)
+def serve_react_app_root():
     if FRONTEND_INDEX_FILE.exists():
         return FileResponse(FRONTEND_INDEX_FILE)
     raise HTTPException(
