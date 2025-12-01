@@ -1,32 +1,20 @@
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base, Session
-from dotenv import load_dotenv
-from typing import List
-import os
+from typing import Generator, List
 
-load_dotenv()
+from sqlalchemy.orm import Session
 
-pg_user = os.getenv("NEWS_DB_USER")
-pg_passwd = os.getenv("NEWS_DB_PASSWORD")
-pg_host = os.getenv("NEWS_DB_HOST")
-pg_port = os.getenv("NEWS_DB_PORT")
-pg_db = os.getenv("NEWS_DB_NAME")
+from app.db.news_db import (
+    NewsBase,
+    get_news_db as _get_news_db,
+    get_news_session as _get_news_session,
+    is_news_db_configured as _is_news_db_configured,
+)
 
-NEWS_DB_URL = f'postgresql+psycopg2://{pg_user}:{pg_passwd}@{pg_host}:{pg_port}/{pg_db}'
+get_news_session = _get_news_session
+get_news_db = _get_news_db
+is_news_db_configured = _is_news_db_configured
 
-NewsEngine = create_engine(NEWS_DB_URL,echo=True)
-NewsSessionLocal = sessionmaker(autocommit=False,autoflush=False,bind=NewsEngine)
-NewsBase = declarative_base()
 
-def get_news_db():
-    db: Session = NewsSessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-        
-    
-def save_news_vectors(session: Session, news_list: List):
+def save_news_vectors(session: Session, news_list: List) -> None:
     if not news_list:
         return
     session.add_all(news_list)

@@ -14,12 +14,17 @@ from app.schemas.chats import (
     ChatCompletionRequest,
     ChatCompletionResponse,
 )
-from app.models.models import User, Chat, Message, TrashEnum
+from app.models.models import User
 from app.services.chat_service import (
     normalize_stock_code,
     upsert_chat_by_stock,
     save_user_message,
     create_message_and_reply,
+    fetch_chat_messages,
+    list_user_chat_rooms,
+    create_chat_room_for_user,
+    get_chat_room_by_stock_for_user,
+    update_chat_room_for_user,
 )
 
 router = APIRouter(tags=["chat"])
@@ -67,16 +72,12 @@ def get_messages(
     current_user: User = Depends(get_current_user),
 ):
     """특정 채팅방의 메시지 내역을 조회"""
-    chat = db.query(Chat).filter(Chat.chat_id == room_id, Chat.user_id == current_user.user_id).first()
-    if not chat:
-        raise HTTPException(status_code=404, detail="Chat room not found or permission denied")
-
-    query = db.query(Message).filter(Message.chat_id == room_id)
-    if last_message_id:
-        query = query.filter(Message.messages_id > last_message_id)
-
-    messages = query.order_by(Message.created_at.asc()).all()
-    return messages
+    return fetch_chat_messages(
+        db,
+        room_id=room_id,
+        current_user=current_user,
+        last_message_id=last_message_id,
+    )
 
 
 @router.get("/rooms", response_model=List[ChatRead])
@@ -84,8 +85,7 @@ def get_chat_rooms(
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """현재 사용자가 참여 중인 모든 채팅방 목록을 조회"""
-    chat_rooms = db.query(Chat).filter(Chat.user_id == current_user.user_id).all()
-    return chat_rooms
+    return list_user_chat_rooms(db, current_user=current_user)
 
 
 @router.put("/v1/chats/by-stock/{stock_code}", response_model=ChatByStockResponse)
@@ -128,29 +128,7 @@ def create_chat_room(
     새 채팅방 생성 (종목별 채팅방)
     - stock_code가 전달되면 동일 사용자/종목의 활성 방이 있으면 그 방을 반환
     """
-    existing_chat = None
-    if chat_in.stock_code:
-        existing_chat = (
-            db.query(Chat)
-            .filter(
-                Chat.user_id == current_user.user_id,
-                Chat.stock_code == chat_in.stock_code,
-                Chat.trash_can == "in",
-            )
-            .first()
-        )
-    if existing_chat:
-        return existing_chat
-
-    new_chat = Chat(
-        user_id=current_user.user_id,
-        title=chat_in.title,
-        stock_code=chat_in.stock_code,
-    )
-    db.add(new_chat)
-    db.commit()
-    db.refresh(new_chat)
-    return new_chat
+    return create_chat_room_for_user(db, current_user=current_user, chat_in=chat_in)
 
 
 @router.get("/rooms/by-stock/{stock_code}", response_model=ChatRead)
@@ -160,18 +138,7 @@ def get_chat_room_by_stock(
     current_user: User = Depends(get_current_user),
 ):
     """현재 사용자의 특정 종목 채팅방 조회"""
-    chat = (
-        db.query(Chat)
-        .filter(
-            Chat.user_id == current_user.user_id,
-            Chat.stock_code == stock_code,
-            Chat.trash_can == "in",
-        )
-        .first()
-    )
-    if not chat:
-        raise HTTPException(status_code=404, detail="Chat room for stock not found")
-    return chat
+    return get_chat_room_by_stock_for_user(db, current_user=current_user, stock_code=stock_code)
 
 
 @router.patch("/rooms/{room_id}", response_model=ChatRead)
@@ -182,32 +149,9 @@ def update_chat_room(
     current_user: User = Depends(get_current_user),
 ):
     """채팅방 정보를 수정 (현재는 제목 및 휴지통 상태만 지원)"""
-    chat = (
-        db.query(Chat)
-        .filter(Chat.chat_id == room_id, Chat.user_id == current_user.user_id)
-        .first()
+    return update_chat_room_for_user(
+        db,
+        room_id=room_id,
+        current_user=current_user,
+        chat_in=chat_in,
     )
-    if not chat:
-        raise HTTPException(status_code=404, detail="Chat room not found or permission denied")
-
-    updated = False
-
-    if chat_in.title is not None:
-        normalized_title = chat_in.title.strip()
-        if not normalized_title:
-            raise HTTPException(status_code=400, detail="Title must not be empty")
-        chat.title = normalized_title
-        updated = True
-
-    if chat_in.trash_can is not None:
-        if chat_in.trash_can not in (TrashEnum.in_.value, TrashEnum.out.value):
-            raise HTTPException(status_code=400, detail="Invalid trash_can value")
-        chat.trash_can = chat_in.trash_can
-        updated = True
-
-    if not updated:
-        return chat
-
-    db.commit()
-    db.refresh(chat)
-    return chat

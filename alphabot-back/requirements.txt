@@ -5,6 +5,7 @@ psycopg[binary]>=3.1.18
 pydantic>=2.6.4
 pydantic-settings>=2.2.1
 openai>=1.51.0
+pgvector>=0.2.4
 
 ##토큰(JWT)을 통해 사용자를 식별하는 의존성(Dependency) 구현을 위한 추가
 PyJWT>=2.8.0

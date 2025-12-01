@@ -1,10 +1,21 @@
 import enum
 from sqlalchemy import (
-    create_engine, Column, Integer, String, Text, TIMESTAMP, 
-    ForeignKey, Enum, BigInteger, Numeric, Date, UniqueConstraint, Index, text
+    Column,
+    Integer,
+    String,
+    Text,
+    TIMESTAMP,
+    ForeignKey,
+    Enum,
+    BigInteger,
+    Numeric,
+    Date,
+    UniqueConstraint,
+    Index,
+    text,
 )
-from sqlalchemy.orm import relationship, declarative_base
-from sqlalchemy.sql import func # func.now()를 위해 임포트
+from sqlalchemy.orm import declarative_base, relationship
+from sqlalchemy.sql import func  # func.now()를 위해 임포트
 
 # 1. Base 클래스 생성
 Base = declarative_base()
@@ -291,3 +302,24 @@ class Comment(Base):
 
     def __repr__(self):
         return f"<Comment(comment_id={self.comment_id}, stock_code='{self.stock_code}')>"
+
+
+class NewsArticle(Base):
+    __tablename__ = 'news_articles'
+    __table_args__ = (
+        UniqueConstraint('url', name='uq_news_articles_url'),
+        {'schema': 'public'},
+    )
+
+    article_id = Column(Integer, primary_key=True, autoincrement=True)
+    category = Column(String(100), nullable=False)
+    title = Column(Text, nullable=False)
+    content = Column(Text, nullable=False)
+    url = Column(Text, nullable=False)
+    source = Column(String(50), nullable=False, default='NAVER_FINANCE')
+    published_at_text = Column(String(64), nullable=True)
+    created_at = Column(TIMESTAMP, server_default=func.now(), nullable=False)
+
+    def __repr__(self) -> str:
+        return f"<NewsArticle(article_id={self.article_id}, url='{self.url}')>"
+

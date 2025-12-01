@@ -1,11 +1,15 @@
 import requests
 from bs4 import BeautifulSoup
-import pandas as pd
 import re
 import time
 import random
 from urllib.parse import urljoin, urlparse, parse_qs
 from datetime import datetime, timedelta
+from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
+
+from app.db.database import SessionLocal
+from app.models.models import NewsArticle
 
 # -------------------------------------------------
 # 기본 설정
@@ -22,6 +26,9 @@ HEADERS = {
     "Accept-Language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
     "Connection": "keep-alive",
 }
+
+SOURCE_NAME = "NAVER_FINANCE"
+BATCH_SAVE_SIZE = 100
 
 # 뉴스포커스 카테고리별 리스트 URL
 CATEGORY_URLS = {
@@ -352,12 +359,71 @@ def extract_article_detail(article_url: str, debug: bool = False) -> dict:
 
 
 # -------------------------------------------------
+# 7) DB 저장
+# -------------------------------------------------
+def save_rows_to_db(rows: list[dict]) -> None:
+    """
+    수집된 뉴스 목록을 데이터베이스에 저장.
+    이미 존재하는 URL은 건너뜀.
+    """
+    if not rows:
+        print("저장할 데이터가 없습니다.")
+        return
+
+    session = SessionLocal()
+    try:
+        urls = [row["url"] for row in rows]
+        existing_urls: set[str] = set()
+        if urls:
+            stmt = select(NewsArticle.url).where(NewsArticle.url.in_(urls))
+            existing_urls = set(session.execute(stmt).scalars())
+
+        new_articles: list[NewsArticle] = []
+        for row in rows:
+            if row["url"] in existing_urls:
+                continue
+            new_articles.append(
+                NewsArticle(
+                    category=row["뉴스카테고리"],
+                    title=row["뉴스제목"],
+                    content=row["뉴스내용"],
+                    url=row["url"],
+                    source=SOURCE_NAME,
+                    published_at_text=row["뉴스날짜"],
+                )
+            )
+
+        if not new_articles:
+            print("신규 뉴스가 없어 DB 저장을 건너뜁니다.")
+            return
+
+        session.add_all(new_articles)
+        session.commit()
+        print(f"\n총 {len(new_articles)}개의 뉴스를 DB에 저장했습니다.")
+    except SQLAlchemyError as exc:
+        session.rollback()
+        print(f"DB 저장 중 오류 발생: {exc}")
+        raise
+    finally:
+        session.close()
+
+
+def flush_rows_buffer(buffer: list[dict]) -> None:
+    """
+    버퍼에 쌓인 rows를 DB에 저장하고 비웁니다.
+    """
+    if not buffer:
+        return
+    save_rows_to_db(buffer)
+    buffer.clear()
+
+
+# -------------------------------------------------
 # 7) 날짜 범위 + 모든 페이지 크롤링 (안전 버전)
 # -------------------------------------------------
 def crawl_news_focus_date_range(
     start_date: str,
     end_date: str,
-    output_csv: str = "naver_finance_news.csv",
 ):
     """
     start_date ~ end_date 범위(포함)의 날짜에 대해,
@@ -437,6 +503,10 @@ def crawl_news_focus_date_range(
 
                     time.sleep(random.uniform(0.3, 0.8))
 
+                    if len(rows) >= BATCH_SAVE_SIZE:
+                        print(f"[INFO] 누적 {len(rows)}건 → 중간 저장")
+                        flush_rows_buffer(rows)
+
 
             # 날짜 하나 끝날 때 쉬기 (2 ~ 4초)
             time.sleep(random.uniform(2, 4))
@@ -448,42 +518,12 @@ def crawl_news_focus_date_range(
         print("수집된 데이터가 없습니다.")
         return
 
-    # ---- DataFrame 구성 ----
-    df = pd.DataFrame(rows)
-
-    # 날짜를 datetime으로 변환
-    df["뉴스날짜_dt"] = pd.to_datetime(df["뉴스날짜"], errors="coerce")
-
-    # CATEGORY_URLS 순서를 그대로 카테고리 순서로 사용
-    category_order = list(CATEGORY_URLS.keys())
-    df["뉴스카테고리"] = pd.Categorical(
-        df["뉴스카테고리"],
-        categories=category_order,
-        ordered=True,
-    )
-
-    # 카테고리 순서 + 날짜 내림차순 정렬
-    df = df.sort_values(["뉴스카테고리", "뉴스날짜_dt"],
-                        ascending=[True, False])
-
-    # id 다시 1부터 재부여
-    df["id"] = range(1, len(df) + 1)
-
-    # 보조 컬럼 삭제
-    df = df.drop(columns=["뉴스날짜_dt"])
-
-    # 컬럼 순서를 원하는 형태로 재배열
-    df = df[["id", "뉴스카테고리", "뉴스날짜", "뉴스제목", "뉴스내용", "url"]]
-
-    # CSV 저장
-    df.to_csv(output_csv, index=False, encoding="utf-8-sig")
-    print(f"\n총 {len(df)}개 뉴스 CSV 저장 완료 -> {output_csv}")
+    flush_rows_buffer(rows)
 
 
 if __name__ == "__main__":
     # 이곳을 수정해서 원하는 시간 설졍
     crawl_news_focus_date_range(
         start_date="2025-11-01",           # 시작일 (YYYYMMDD or YYYY-MM-DD)
-        end_date="2025-11-10",             # 종료일
-        output_csv="naver_finance_news_20251101_20251110.csv",
+        end_date="2025-11-25",             # 종료일
     )
