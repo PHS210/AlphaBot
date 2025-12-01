@@ -3,6 +3,17 @@ from datetime import datetime
 from typing import Optional
 
 
+# --- 1. 메시지 정보를 보여주기 위한 작은 스키마 추가 ---
+class MessageInBookmark(BaseModel):
+    messages_id: int
+    content: str
+    role: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+        
+
 class BookmarkCreate(BaseModel):
     """북마크(메시지 저장) 생성 요청 스키마"""
     messages_id: int = Field(..., description="저장할 메시지 ID")
@@ -16,6 +27,8 @@ class BookmarkRead(BaseModel):
     messages_id: int
     category_id: Optional[int] = None
     created_at: datetime
+    # --- 2. MessageInBookmark 객체 추가 ---
+    message: Optional[MessageInBookmark] = None
 
     class Config:
         from_attributes = True

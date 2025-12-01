@@ -1,22 +1,28 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { FaUser, FaLock, FaArrowLeft } from 'react-icons/fa';
+import { AxiosError } from 'axios';
+
+// API 함수들 import
+import { getMe, updateProfile, changePassword } from '@/api/userClient';
 
 const MyPage: React.FC = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'profile' | 'password'>('profile');
   
-  // Mock 사용자 정보
+  // --- 사용자 정보 상태 ---
   const [userInfo, setUserInfo] = useState({
-    loginId: 'user123',
-    username: '홍길동'
+    loginId: '',
+    username: ''
   });
+  const [isLoading, setIsLoading] = useState(true);
 
+  // --- 프로필 수정 상태 ---
   const [isEditMode, setIsEditMode] = useState(false);
-  const [editedName, setEditedName] = useState(userInfo.username);
+  const [editedName, setEditedName] = useState('');
 
-  // 비밀번호 변경 상태
+  // --- 비밀번호 변경 상태 ---
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
     newPassword: '',
@@ -24,18 +30,48 @@ const MyPage: React.FC = () => {
   });
   const [passwordErrors, setPasswordErrors] = useState<{[key: string]: string}>({});
 
+  // 1. 페이지 로드 시 내 정보 가져오기
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const data = await getMe();
+        setUserInfo({
+          loginId: data.login_id,
+          username: data.username
+        });
+        setEditedName(data.username); // 수정 모드용 초기값 설정
+      } catch (error) {
+        console.error('Failed to fetch user info', error);
+        alert('로그인 정보가 만료되었거나 불러올 수 없습니다.');
+        navigate('/login');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchUser();
+  }, [navigate]);
+
+  // 2. 프로필 수정 핸들러
   const handleProfileEdit = () => {
+    setEditedName(userInfo.username); // 현재 이름으로 리셋
     setIsEditMode(true);
   };
 
-  const handleProfileSave = () => {
+  const handleProfileSave = async () => {
     if (!editedName.trim()) {
       alert('이름을 입력해주세요.');
       return;
     }
-    setUserInfo({ ...userInfo, username: editedName });
-    setIsEditMode(false);
-    alert('프로필 정보가 성공적으로 변경되었습니다.');
+    
+    try {
+      const updatedUser = await updateProfile({ username: editedName });
+      setUserInfo({ ...userInfo, username: updatedUser.username }); // 화면 업데이트
+      setIsEditMode(false);
+      alert('프로필 정보가 성공적으로 변경되었습니다.');
+    } catch (error) {
+      console.error(error);
+      alert('프로필 수정에 실패했습니다.');
+    }
   };
 
   const handleProfileCancel = () => {
@@ -43,13 +79,14 @@ const MyPage: React.FC = () => {
     setIsEditMode(false);
   };
 
+  // 3. 비밀번호 입력 핸들러
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setPasswordData(prev => ({
       ...prev,
       [name]: value
     }));
-    // 에러 제거
+    // 에러 메시지 초기화
     if (passwordErrors[name]) {
       setPasswordErrors(prev => {
         const newErrors = { ...prev };
@@ -59,21 +96,20 @@ const MyPage: React.FC = () => {
     }
   };
 
-  const handlePasswordSubmit = (e: React.FormEvent) => {
+  // 4. 비밀번호 변경 요청 핸들러
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     const errors: {[key: string]: string} = {};
 
-    // Mock: 현재 비밀번호 확인 (실제로는 서버에서 확인)
-    const mockCurrentPassword = 'password123';
-    if (passwordData.currentPassword !== mockCurrentPassword) {
-      errors.currentPassword = '현재 비밀번호가 일치하지 않습니다.';
+    // 클라이언트 측 유효성 검사
+    if (!passwordData.currentPassword) {
+      errors.currentPassword = '현재 비밀번호를 입력하세요.';
     }
-
     if (!passwordData.newPassword) {
       errors.newPassword = '새 비밀번호를 입력하세요.';
+    } else if (passwordData.newPassword.length < 8) {
+      errors.newPassword = '비밀번호는 8자 이상이어야 합니다.';
     }
-
     if (passwordData.newPassword !== passwordData.newPasswordConfirm) {
       errors.newPasswordConfirm = '새 비밀번호가 일치하지 않습니다.';
     }
@@ -83,14 +119,39 @@ const MyPage: React.FC = () => {
       return;
     }
 
-    // 비밀번호 변경 성공
-    alert('비밀번호가 성공적으로 변경되었습니다.');
-    setPasswordData({
-      currentPassword: '',
-      newPassword: '',
-      newPasswordConfirm: ''
-    });
+    try {
+      await changePassword({
+        current_password: passwordData.currentPassword,
+        new_password: passwordData.newPassword,
+        new_password_confirm: passwordData.newPasswordConfirm
+      });
+
+      alert('비밀번호가 성공적으로 변경되었습니다.');
+      // 폼 초기화
+      setPasswordData({
+        currentPassword: '',
+        newPassword: '',
+        newPasswordConfirm: ''
+      });
+    } catch (error) {
+      if (error instanceof AxiosError && error.response?.data?.detail) {
+        // 백엔드에서 보낸 에러 메시지 표시 (예: 현재 비밀번호 불일치)
+        const detail = error.response.data.detail;
+        if (detail.includes('비밀번호')) {
+           // 상황에 따라 적절한 필드에 에러 표시, 여기선 현재 비밀번호 에러로 간주
+           setPasswordErrors({ currentPassword: detail });
+        } else {
+           alert(detail);
+        }
+      } else {
+        alert('비밀번호 변경 중 오류가 발생했습니다.');
+      }
+    }
   };
+
+  if (isLoading) {
+    return <div style={{ padding: '20px', color: 'white' }}>로딩 중...</div>;
+  }
 
   return (
     <Container>
@@ -103,10 +164,10 @@ const MyPage: React.FC = () => {
         </Header>
 
         <TabContainer>
-          <Tab active={activeTab === 'profile'} onClick={() => setActiveTab('profile')}>
+          <Tab $active={activeTab === 'profile'} onClick={() => setActiveTab('profile')}>
             <FaUser /> 프로필 수정
           </Tab>
-          <Tab active={activeTab === 'password'} onClick={() => setActiveTab('password')}>
+          <Tab $active={activeTab === 'password'} onClick={() => setActiveTab('password')}>
             <FaLock /> 비밀번호 변경
           </Tab>
         </TabContainer>
@@ -205,6 +266,7 @@ const MyPage: React.FC = () => {
   );
 };
 
+// --- Styled Components (기존과 동일, 그대로 두세요) ---
 const Container = styled.div`
   min-height: 100vh;
   background: #f5f5f5;
@@ -254,17 +316,17 @@ const TabContainer = styled.div`
   border-bottom: 2px solid #e0e0e0;
 `;
 
-const Tab = styled.button<{ active: boolean }>`
+const Tab = styled.button<{ $active: boolean }>`
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 12px 24px;
-  background: ${props => props.active ? 'white' : 'transparent'};
+  background: ${props => props.$active ? 'white' : 'transparent'};
   border: none;
-  border-bottom: 3px solid ${props => props.active ? '#667eea' : 'transparent'};
-  color: ${props => props.active ? '#667eea' : '#999'};
+  border-bottom: 3px solid ${props => props.$active ? '#667eea' : 'transparent'};
+  color: ${props => props.$active ? '#667eea' : '#999'};
   font-size: 16px;
-  font-weight: ${props => props.active ? '600' : '400'};
+  font-weight: ${props => props.$active ? '600' : '400'};
   cursor: pointer;
   transition: all 0.3s;
 
@@ -416,4 +478,3 @@ const SubmitButton = styled.button`
 `;
 
 export default MyPage;
-

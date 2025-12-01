@@ -1,11 +1,10 @@
-// 기존에 app.tsx에 있던 내용을 아예 페이지 컴포넌트로 만듬. 로그인페이지와 웰컴페이지 라우팅을 위해서.
-
-import React, { useState } from 'react';
-import Header from '../components/Header';
+import React, { useEffect, useState } from 'react';
+import styled from 'styled-components';
+import { useNavigate, useParams } from 'react-router-dom';
+import ChatArea from '../components/ChatArea';
 import LeftSidebar from '../components/LeftSidebar';
 import RightMenu from '../components/RightMenu';
-import ChatArea from '../components/ChatArea';
-import StockDetail from '../components/StockDetail';
+import { FaUser } from 'react-icons/fa';
 
 interface Stock {
   code: string;
@@ -14,49 +13,216 @@ interface Stock {
   currentPrice: number;
   change: number;
   changePercent: number;
-  open: number;
-  high: number;
-  low: number;
-  volume: number;
-  marketCap: number;
-  pe: number;
-  eps: number;
-  dividend: number;
 }
 
-const MainPage: React.FC = () => {
+const ChatPage: React.FC = () => {
+  const navigate = useNavigate();
+  const { stockCode: stockCodeParam } = useParams<{ stockCode?: string }>();
   const [selectedStock, setSelectedStock] = useState<Stock | null>(null);
 
-  const handleSelectStock = (stock: any) => {
-    // Mock: 전체 데이터 채우기
-    const fullStock: Stock = {
-      ...stock,
-      open: stock.currentPrice * 0.99,
-      high: stock.currentPrice * 1.02,
-      low: stock.currentPrice * 0.97,
-      volume: 45000000,
-      marketCap: 2900000000000,
-      pe: 28.5,
-      eps: 6.25,
-      dividend: 0.52,
-    };
-    setSelectedStock(fullStock);
+  useEffect(() => {
+    if (!stockCodeParam) {
+      setSelectedStock(null);
+      return;
+    }
+    const normalized = stockCodeParam.toUpperCase();
+    setSelectedStock((prev) => {
+      if (prev && prev.code === normalized) {
+        return prev;
+      }
+      return {
+        code: normalized,
+        name: normalized,
+        exchange: '',
+        currentPrice: 0,
+        change: 0,
+        changePercent: 0,
+      };
+    });
+  }, [stockCodeParam]);
+
+  const handleSelectStock = (stock: Stock) => {
+    setSelectedStock(stock);
+    navigate(`/chat/${encodeURIComponent(stock.code)}`);
+  };
+
+  const handleClearSelection = () => {
+    setSelectedStock(null);
+    navigate('/chat');
+  };
+
+  const handleGoToMyPage = () => {
+    navigate('/mypage');
   };
 
   return (
-    <div className="app">
-      <Header />
-      <main className="main">
-        <LeftSidebar />
-        <ChatArea />
-        <RightMenu onSelectStock={handleSelectStock} />
-      </main>
+    <Container>
+      <ChatHeader>
+        <HeaderContent>
+          <Logo>
+            <LogoIcon>💼</LogoIcon>
+            <LogoText>Alpha Bot</LogoText>
+          </Logo>
+          
+          <HeaderRight>
+          {selectedStock && (
+            <SelectedStockInfo>
+              <StockBadge>
+                <StockCode>{selectedStock.code}</StockCode>
+                <StockName>{selectedStock.name}</StockName>
+              </StockBadge>
+              <ClearButton onClick={handleClearSelection} title="종목 선택 해제">
+                ✕
+              </ClearButton>
+            </SelectedStockInfo>
+          )}
+            <MyPageButton type="button" onClick={handleGoToMyPage}>
+              <FaUser aria-hidden />
+              <span>마이페이지</span>
+            </MyPageButton>
+          </HeaderRight>
+        </HeaderContent>
+      </ChatHeader>
 
-      {selectedStock && (
-        <StockDetail stock={selectedStock} onClose={() => setSelectedStock(null)} />
-      )}
-    </div>
+      <MainContent>
+        <LeftSidebar
+          selectedStockCode={selectedStock?.code}
+          onSelectStock={handleSelectStock}
+        />
+        <ChatArea stockCode={selectedStock?.code} />
+        <RightMenu
+          onSelectStock={handleSelectStock}
+          selectedStockCode={selectedStock?.code}
+          selectedStockName={selectedStock?.name}
+        />
+      </MainContent>
+    </Container>
   );
 };
 
-export default MainPage;
+const Container = styled.div`
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #f7f7f8;
+`;
+
+const ChatHeader = styled.header`
+  background: #ffffff;
+  border-bottom: 1px solid #e5e5e5;
+  padding: 12px 20px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+`;
+
+const HeaderContent = styled.div`
+  max-width: 100%;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+`;
+
+const Logo = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+`;
+
+const LogoIcon = styled.span`
+  font-size: 24px;
+`;
+
+const LogoText = styled.span`
+  font-size: 18px;
+  font-weight: 700;
+  color: #202123;
+`;
+
+const HeaderRight = styled.div`
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+`;
+
+const SelectedStockInfo = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #f0f7ff;
+  border: 1px solid #d0e7ff;
+  border-radius: 8px;
+  flex-shrink: 0;
+`;
+
+const StockBadge = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+
+const StockCode = styled.span`
+  font-size: 14px;
+  font-weight: 700;
+  color: #4169e1;
+`;
+
+const StockName = styled.span`
+  font-size: 13px;
+  color: #565869;
+`;
+
+const ClearButton = styled.button`
+  background: transparent;
+  border: none;
+  color: #8e8ea0;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  font-size: 14px;
+  transition: all 0.2s;
+
+  &:hover {
+    background: #e5e5e5;
+    color: #565869;
+  }
+`;
+
+const MainContent = styled.main`
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  width: 100%;
+`;
+
+const MyPageButton = styled.button`
+  background: #4169e1;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+
+  &:hover {
+    background: #3558b8;
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+`;
+
+export default ChatPage;

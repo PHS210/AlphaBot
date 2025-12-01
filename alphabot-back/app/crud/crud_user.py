@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from app.core.security import get_password_hash
-from app.models import User
-from app.schemas.user import UserCreate
+from app.models.models import User
+from app.schemas.user import UserCreate, UserUpdate
 
 def get_user_by_login_id(db: Session, *, login_id: str) -> User | None:
     """login_id로 사용자를 조회합니다."""
@@ -21,6 +21,31 @@ def create_user(db: Session, *, obj_in: UserCreate) -> User:
     db.commit()
     db.refresh(db_obj)
     return db_obj
+
+def update_user(db: Session, *, db_user: User, obj_in: UserUpdate) -> User:
+    """사용자 프로필(이름 등)을 수정합니다."""
+    # 변경 요청된 데이터만 딕셔너리로 변환 (null 값 제외)
+    update_data = obj_in.dict(exclude_unset=True)
+    
+    # DB 객체 속성 업데이트
+    for field, value in update_data.items():
+        setattr(db_user, field, value)
+
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return db_user
+
+def update_password(db: Session, *, db_user: User, new_password: str) -> User:
+    """사용자의 비밀번호를 변경합니다."""
+    # 새 비밀번호를 해시화(암호화)하여 저장
+    hashed_password = get_password_hash(new_password)
+    db_user.hashed_pw = hashed_password
+    
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return db_user
 
 # 전역 변수로 crud 객체를 만들어두면 다른 곳에서 임포트하여 사용하기 편리합니다.
 # from app.crud import user_crud 와 같이 사용할 수 있습니다.

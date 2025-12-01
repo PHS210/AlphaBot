@@ -87,10 +87,10 @@ const StockDetail: React.FC<StockDetailProps> = ({ stock, onClose }) => {
         </PriceSection>
 
         <TabContainer>
-          <Tab active={activeTab === 'info'} onClick={() => setActiveTab('info')}>
+          <Tab $active={activeTab === 'info'} onClick={() => setActiveTab('info')}>
             상세 정보
           </Tab>
-          <Tab active={activeTab === 'financial'} onClick={() => setActiveTab('financial')}>
+          <Tab $active={activeTab === 'financial'} onClick={() => setActiveTab('financial')}>
             재무제표
           </Tab>
         </TabContainer>
@@ -331,14 +331,14 @@ const TabContainer = styled.div`
   padding: 0 24px;
 `;
 
-const Tab = styled.button<{ active: boolean }>`
+const Tab = styled.button<{ $active: boolean }>`
   padding: 16px 24px;
   background: transparent;
   border: none;
-  border-bottom: 3px solid ${props => props.active ? 'var(--color-primary)' : 'transparent'};
-  color: ${props => props.active ? 'var(--color-primary)' : 'var(--color-muted)'};
+  border-bottom: 3px solid ${props => props.$active ? 'var(--color-primary)' : 'transparent'};
+  color: ${props => props.$active ? 'var(--color-primary)' : 'var(--color-muted)'};
   font-size: 16px;
-  font-weight: ${props => props.active ? '600' : '400'};
+  font-weight: ${props => props.$active ? '600' : '400'};
   cursor: pointer;
   transition: all 0.3s;
   margin-bottom: -2px;

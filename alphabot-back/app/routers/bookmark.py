@@ -5,8 +5,8 @@ import math
 
 # crud, schemas, models, db 폴더에서 필요한 것들을 import
 from ..crud.crud_bookmark import bookmark_crud
-from .. import schemas
-from ..models import models
+from app.schemas.bookmark import BookmarkCreate, BookmarkUpdate, BookmarkRead, BookmarkList
+from ..models.models import User # models.py에서 User 모델 가져오기
 from ..db import get_db
 
 # 인증을 위해 현재 로그인한 사용자를 가져오는 의존성 (경로 확인 필요)
@@ -19,14 +19,20 @@ router = APIRouter()
 
 @router.post(
     "/", 
-    response_model=schemas.BookmarkRead, 
+    response_model=BookmarkRead, 
     status_code=status.HTTP_201_CREATED
+)
+@router.post(
+    "",
+    response_model=BookmarkRead,
+    status_code=status.HTTP_201_CREATED,
+    include_in_schema=False,
 )
 def create_bookmark(
     *,
     db: Session = Depends(get_db),
-    bookmark_in: schemas.BookmarkCreate,
-    current_user: models.User = Depends(get_current_user)
+    bookmark_in: BookmarkCreate,
+    current_user: User = Depends(get_current_user)
 ):
     """
     새 북마크(메시지 저장)를 생성합니다. (로그인 필요)
@@ -34,17 +40,18 @@ def create_bookmark(
     - **유스케이스 4.1.5**: 채팅 메시지를 특정 카테고리에 북마크합니다.
     """
     # crud 함수를 호출할 때 인증된 사용자의 user_id를 함께 전달
-    bookmark = crud.bookmark_crud.create_with_user(
+    bookmark = bookmark_crud.create_with_user(
         db=db, obj_in=bookmark_in, user_id=current_user.user_id
     )
     return bookmark
 
 
-@router.get("/", response_model=schemas.BookmarkList)
+@router.get("/", response_model=BookmarkList)
+@router.get("", response_model=BookmarkList, include_in_schema=False)
 def read_bookmarks(
     *,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     page: int = Query(1, ge=1, description="페이지 번호"),
     page_size: int = Query(10, ge=1, le=100, description="페이지 크기"),
     category_id: Optional[int] = Query(None, description="카테고리 ID (없으면 '전체' 조회)")
@@ -59,22 +66,22 @@ def read_bookmarks(
     
     if category_id is None:
         # '전체' 북마크 조회 (이미지의 '전체 (4)' 클릭 시)
-        bookmarks = crud.bookmark_crud.get_multi_by_user(
+        bookmarks = bookmark_crud.get_multi_by_user(
             db, user_id=current_user.user_id, skip=skip, limit=page_size
         )
-        total = crud.bookmark_crud.get_count_by_user(db, user_id=current_user.user_id)
+        total = bookmark_crud.get_count_by_user(db, user_id=current_user.user_id)
     else:
         # 특정 카테고리 북마크 조회 (이미지의 '투자 전략 (1)' 클릭 시)
-        bookmarks = crud.bookmark_crud.get_multi_by_user_and_category(
+        bookmarks = bookmark_crud.get_multi_by_user_and_category(
             db, user_id=current_user.user_id, category_id=category_id, skip=skip, limit=page_size
         )
-        total = crud.bookmark_crud.get_count_by_user_and_category(
+        total = bookmark_crud.get_count_by_user_and_category(
             db, user_id=current_user.user_id, category_id=category_id
         )
     
     total_pages = math.ceil(total / page_size) if total > 0 else 1
     
-    return schemas.BookmarkList(
+    return BookmarkList(
         bookmarks=bookmarks,
         total=total,
         page=page,
@@ -83,19 +90,19 @@ def read_bookmarks(
     )
 
 
-@router.put("/{bookmark_id}", response_model=schemas.BookmarkRead)
+@router.put("/{bookmark_id}", response_model=BookmarkRead)
 def update_bookmark_category(
     *,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     bookmark_id: int,
-    bookmark_in: schemas.BookmarkUpdate
+    bookmark_in: BookmarkUpdate
 ):
     """
     북마크의 카테고리를 변경합니다. (예: 다른 카테고리로 이동)
     """
     # 먼저 해당 북마크가 로그인한 사용자의 소유인지 확인
-    db_bookmark = crud.bookmark_crud.get_by_id_and_user(
+    db_bookmark = bookmark_crud.get_by_id_and_user(
         db, bookmark_id=bookmark_id, user_id=current_user.user_id
     )
     
@@ -106,7 +113,7 @@ def update_bookmark_category(
         )
     
     # CRUDBase의 제네릭 update 함수를 호출
-    bookmark = crud.bookmark_crud.update(db=db, db_obj=db_bookmark, obj_in=bookmark_in)
+    bookmark = bookmark_crud.update(db=db, db_obj=db_bookmark, obj_in=bookmark_in)
     return bookmark
 
 
@@ -114,7 +121,7 @@ def update_bookmark_category(
 def delete_bookmark(
     *,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     bookmark_id: int
 ):
     """
@@ -123,7 +130,7 @@ def delete_bookmark(
     - **유스케이스 4.1.8**: 개별 북마크 삭제 (이미지의 휴지통 아이콘)
     """
     # crud 함수에서 본인 소유가 맞는지 확인하며 삭제
-    deleted_bookmark = crud.bookmark_crud.remove_by_id_and_user(
+    deleted_bookmark = bookmark_crud.remove_by_id_and_user(
         db, bookmark_id=bookmark_id, user_id=current_user.user_id
     )
     

@@ -33,6 +33,8 @@ services:
     # 백엔드 소스코드도 실시간으로 동기화합니다.
     volumes:
       - ./alphabot-back/app:/app/app
+      - ./alphabot-back/alembic:/app/alembic
+      - ./alphabot-back/alembic.ini:/app/alembic.ini
     # 포트 매핑
     ports:
       - "8080:8080"

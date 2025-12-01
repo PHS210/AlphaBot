@@ -1,10 +1,21 @@
 import enum
 from sqlalchemy import (
-    create_engine, Column, Integer, String, Text, TIMESTAMP, 
-    ForeignKey, Enum, BigInteger, Numeric, Date, UniqueConstraint
+    Column,
+    Integer,
+    String,
+    Text,
+    TIMESTAMP,
+    ForeignKey,
+    Enum,
+    BigInteger,
+    Numeric,
+    Date,
+    UniqueConstraint,
+    Index,
+    text,
 )
-from sqlalchemy.orm import relationship, declarative_base
-from sqlalchemy.sql import func # func.now()를 위해 임포트
+from sqlalchemy.orm import declarative_base, relationship
+from sqlalchemy.sql import func  # func.now()를 위해 임포트
 
 # 1. Base 클래스 생성
 Base = declarative_base()
@@ -29,9 +40,9 @@ class User(Base):
     __table_args__ = {'schema': 'public'}
 
     user_id = Column(Integer, primary_key=True, autoincrement=True)
+    login_id = Column(String(100), nullable=False, unique=True)
     username = Column(String(50), nullable=False)
-    email = Column(String(100), nullable=False, unique=True)
-    password = Column(String(255), nullable=False)
+    hashed_pw = Column(String(255), nullable=False)
     created_at = Column(TIMESTAMP, server_default=func.now())
 
     # --- Relationships ---
@@ -42,17 +53,33 @@ class User(Base):
     messages = relationship("Message", back_populates="user", cascade="all, delete")
     # 'fk_bookmark_user_id' FK에 대응
     bookmarks = relationship("Bookmark", back_populates="user", cascade="all, delete")
+    # 'fk_category_user_id' FK에 대응
+    categories = relationship("Category", back_populates="user", cascade="all, delete")
+    # 'fk_comment_user_id' FK에 대응
+    comments = relationship("Comment", back_populates="user", cascade="all, delete")
 
     def __repr__(self):
-        return f"<User(user_id={self.user_id}, email='{self.email}')>"
+        return f"<User(user_id={self.user_id}, login_id='{self.login_id}')>"
 
 class Chat(Base):
     __tablename__ = 'chat'
-    __table_args__ = {'schema': 'public'}
+    __table_args__ = (
+        # 조건부 유니크 인덱스(사용자와 종목코드 조합)
+        Index(
+            'ux_chat_user_stock_active',
+            'user_id',
+            'stock_code',
+            unique=True,
+            postgresql_where=text("stock_code IS NOT NULL AND trash_can = 'out'")
+        ),
+        {'schema': 'public'},
+    )
 
     chat_id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey('public.users.user_id', ondelete="CASCADE"), nullable=False)
     title = Column(String(100), nullable=False)
+    # 종목별 채팅 기능을 위한 선택적 종목 코드 (예: AAPL). 인덱스 부여.
+    stock_code = Column(String(20), nullable=True, index=True)
     created_at = Column(TIMESTAMP, server_default=func.now())
     lastchat_at = Column(TIMESTAMP, nullable=True)
     trash_can = Column(Enum(TrashEnum, name='trash_enum', create_type=False), server_default=TrashEnum.in_.value)
@@ -93,12 +120,14 @@ class Category(Base):
     __table_args__ = {'schema': 'public'}
 
     category_id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('public.users.user_id', ondelete="CASCADE"), nullable=False)
     title = Column(String(50), nullable=False)
     created_at = Column(TIMESTAMP, server_default=func.now())
     
     # --- Relationships ---
     # Category(1)가 Bookmark(N)를 가짐 (SQL에는 FK가 없었지만, 컬럼이 존재하므로 관계 정의)
     bookmarks = relationship("Bookmark", back_populates="category")
+    user = relationship("User", back_populates="categories")
 
     def __repr__(self):
         return f"<Category(category_id={self.category_id}, title='{self.title}')>"
@@ -202,6 +231,7 @@ class Stock(Base):
     # --- Relationships ---
     # Stock(1)이 FinancialStatement(N)를 가짐
     financial_statements = relationship("FinancialStatement", back_populates="stock", cascade="all, delete")
+    comments = relationship("Comment", back_populates="stock", cascade="all, delete")
 
     def __repr__(self):
         return f"<Stock(code='{self.code}', company_name='{self.company_name}')>"
@@ -251,3 +281,45 @@ class FinancialStatement(Base):
 
     def __repr__(self):
         return f"<FinancialStatement(stock_code='{self.stock_code}', period='{self.report_period}')>"
+    
+
+class Comment(Base):
+    __tablename__ = 'comments'
+    __table_args__ = {'schema': 'public'}
+
+    comment_id = Column(Integer, primary_key=True, autoincrement=True)
+    # 작성자 (User) 연결
+    user_id = Column(Integer, ForeignKey('public.users.user_id', ondelete="CASCADE"), nullable=False)
+    # 종목 (Stock) 연결
+    stock_code = Column(String(20), ForeignKey('public.stocks.code', ondelete="CASCADE"), nullable=False)
+    
+    content = Column(Text, nullable=False)
+    created_at = Column(TIMESTAMP, server_default=func.now())
+
+    # --- Relationships ---
+    user = relationship("User", back_populates="comments")
+    stock = relationship("Stock", back_populates="comments")
+
+    def __repr__(self):
+        return f"<Comment(comment_id={self.comment_id}, stock_code='{self.stock_code}')>"
+
+
+class NewsArticle(Base):
+    __tablename__ = 'news_articles'
+    __table_args__ = (
+        UniqueConstraint('url', name='uq_news_articles_url'),
+        {'schema': 'public'},
+    )
+
+    article_id = Column(Integer, primary_key=True, autoincrement=True)
+    category = Column(String(100), nullable=False)
+    title = Column(Text, nullable=False)
+    content = Column(Text, nullable=False)
+    url = Column(Text, nullable=False)
+    source = Column(String(50), nullable=False, default='NAVER_FINANCE')
+    published_at_text = Column(String(64), nullable=True)
+    created_at = Column(TIMESTAMP, server_default=func.now(), nullable=False)
+
+    def __repr__(self) -> str:
+        return f"<NewsArticle(article_id={self.article_id}, url='{self.url}')>"
+

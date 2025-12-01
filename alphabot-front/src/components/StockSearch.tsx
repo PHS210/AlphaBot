@@ -65,6 +65,32 @@ const StockSearch: React.FC<StockSearchProps> = ({ onSelectStock }) => {
     }
   };
 
+  const getStockFromTerm = (term: string): Stock => {
+    const normalized = term.toUpperCase();
+    const matched = mockStocks.find(
+      stock =>
+        stock.code.toLowerCase() === term.toLowerCase() ||
+        stock.name.toLowerCase() === term.toLowerCase(),
+    );
+    if (matched) {
+      return matched;
+    }
+    return {
+      code: normalized,
+      name: normalized,
+      exchange: '',
+      currentPrice: 0,
+      change: 0,
+      changePercent: 0,
+    };
+  };
+
+  const handleSubmitSearch = () => {
+    const term = searchTerm.trim();
+    if (!term) return;
+    handleSearch(getStockFromTerm(term));
+  };
+
   const handleRecentSearch = (code: string) => {
     const stock = mockStocks.find(s => s.code === code);
     if (stock) {
@@ -94,6 +120,12 @@ const StockSearch: React.FC<StockSearchProps> = ({ onSelectStock }) => {
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           onFocus={() => setIsOpen(true)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              handleSubmitSearch();
+            }
+          }}
         />
         {searchTerm && (
           <ClearButton onClick={handleClearSearch}>
@@ -161,48 +193,53 @@ const SearchBox = styled.div`
 
 const SearchIcon = styled.div`
   position: absolute;
-  left: 12px;
-  color: var(--color-muted);
+  left: 14px;
+  color: #8e8ea0;
   pointer-events: none;
+  display: flex;
+  align-items: center;
 `;
 
 const SearchInput = styled.input`
   width: 100%;
-  padding: 10px 36px;
-  background: var(--color-card);
-  border: 1px solid var(--color-border);
+  padding: 10px 40px;
+  background: #f7f7f8;
+  border: 1px solid #e5e5e5;
   border-radius: 8px;
-  font-size: 13px;
-  color: var(--color-text);
-  transition: all 0.3s;
+  font-size: 14px;
+  color: #202123;
+  transition: all 0.2s;
+  font-family: inherit;
 
   &:focus {
     outline: none;
-    border-color: var(--color-primary);
+    border-color: #4169e1;
+    background: #ffffff;
+    box-shadow: 0 0 0 3px rgba(65, 105, 225, 0.1);
   }
 
   &::placeholder {
-    color: var(--color-muted);
+    color: #8e8ea0;
   }
 `;
 
 const ClearButton = styled.button`
   position: absolute;
-  right: 8px;
+  right: 10px;
   padding: 6px;
   background: transparent;
   border: none;
-  color: var(--color-muted);
+  color: #8e8ea0;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
+  border-radius: 4px;
   transition: all 0.2s;
 
   &:hover {
-    background: var(--color-accent);
-    color: var(--color-text);
+    background: #e5e5e5;
+    color: #565869;
   }
 `;
 
@@ -211,13 +248,26 @@ const DropdownContainer = styled.div`
   top: calc(100% + 8px);
   left: 0;
   right: 0;
-  background: var(--color-panel);
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-  max-height: 350px;
+  background: #ffffff;
+  border: 1px solid #e5e5e5;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  max-height: 400px;
   overflow-y: auto;
   z-index: 1000;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #d9d9e3;
+    border-radius: 3px;
+  }
 `;
 
 const Section = styled.div`
@@ -225,46 +275,47 @@ const Section = styled.div`
 `;
 
 const SectionTitle = styled.div`
-  padding: 8px 12px;
-  font-size: 11px;
+  padding: 8px 16px;
+  font-size: 12px;
   font-weight: 600;
-  color: var(--color-muted);
+  color: #8e8ea0;
   text-transform: uppercase;
+  letter-spacing: 0.5px;
 `;
 
 const RecentItem = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px;
+  padding: 10px 16px;
   cursor: pointer;
   transition: background 0.2s;
 
   &:hover {
-    background: var(--color-card);
+    background: #f7f7f8;
   }
 `;
 
 const RecentCode = styled.span`
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
-  color: var(--color-primary);
+  color: #4169e1;
 `;
 
 const DeleteRecentButton = styled.button`
-  padding: 4px;
+  padding: 6px;
   background: transparent;
   border: none;
-  color: var(--color-muted);
+  color: #8e8ea0;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
+  border-radius: 4px;
   transition: all 0.2s;
 
   &:hover {
-    background: var(--color-accent);
+    background: #fee;
     color: #e74c3c;
   }
 `;
@@ -273,17 +324,17 @@ const StockItem = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 12px;
+  padding: 12px 16px;
   cursor: pointer;
   transition: background 0.2s;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid #f0f0f0;
 
   &:last-child {
     border-bottom: none;
   }
 
   &:hover {
-    background: var(--color-card);
+    background: #f7f7f8;
   }
 `;
 
@@ -292,25 +343,25 @@ const StockInfo = styled.div`
 `;
 
 const StockCode = styled.div`
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
-  color: var(--color-text);
-  margin-bottom: 2px;
+  color: #202123;
+  margin-bottom: 4px;
 `;
 
 const StockName = styled.div`
-  font-size: 12px;
-  color: var(--color-muted);
-  margin-bottom: 2px;
+  font-size: 13px;
+  color: #565869;
+  margin-bottom: 6px;
 `;
 
 const Exchange = styled.div`
   display: inline-block;
-  padding: 2px 6px;
-  background: rgba(65, 105, 225, 0.2);
-  color: var(--color-primary);
+  padding: 3px 8px;
+  background: #f0f7ff;
+  color: #4169e1;
   border-radius: 6px;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
 `;
 
@@ -319,24 +370,23 @@ const PriceInfo = styled.div`
 `;
 
 const Price = styled.div`
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
-  color: var(--color-text);
-  margin-bottom: 2px;
+  color: #202123;
+  margin-bottom: 4px;
 `;
 
 const Change = styled.div<{ isPositive: boolean }>`
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
-  color: ${props => props.isPositive ? '#27ae60' : '#e74c3c'};
+  color: ${props => props.isPositive ? '#10a37f' : '#ef4444'};
 `;
 
 const EmptyResult = styled.div`
-  padding: 30px 20px;
+  padding: 32px 20px;
   text-align: center;
-  color: var(--color-muted);
-  font-size: 13px;
+  color: #8e8ea0;
+  font-size: 14px;
 `;
 
 export default StockSearch;
-

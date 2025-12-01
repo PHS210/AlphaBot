@@ -1,10 +1,9 @@
-// src/components/Button/ButtonStyle.ts
-
 import styled from 'styled-components';
 
+// 👇 [수정] $ 기호를 붙여 Transient Prop으로 변경
 interface StyledButtonProps {
-  variant: 'primary' | 'secondary' | 'ghost';
-  size: 'small' | 'medium' | 'large';
+  $variant: 'primary' | 'secondary' | 'ghost';
+  $size: 'small' | 'medium' | 'large';
 }
 
 export const StyledButton = styled.button<StyledButtonProps>`
@@ -19,9 +18,9 @@ export const StyledButton = styled.button<StyledButtonProps>`
   justify-content: center;
   gap: 8px; /* 아이콘과 텍스트 사이 간격 */
 
-  // variant prop에 따라 스타일을 조건부로 적용
+  // 👇 [수정] props.$variant로 변경
   ${(props) => {
-    switch (props.variant) {
+    switch (props.$variant) {
       case 'primary':
         return `
           background-color: #007bff;
@@ -52,9 +51,9 @@ export const StyledButton = styled.button<StyledButtonProps>`
     }
   }}
 
-  // size prop에 따라 스타일을 조건부로 적용
+  // 👇 [수정] props.$size로 변경
   ${(props) => {
-    switch (props.size) {
+    switch (props.$size) {
       case 'small':
         return `
           padding: 8px 12px;

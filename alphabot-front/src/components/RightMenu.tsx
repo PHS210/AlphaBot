@@ -1,14 +1,17 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import styled from 'styled-components';
 import Button from './Button/Button'; 
-import { FaBars, FaHistory, FaTrash, FaUser, FaSignOutAlt, FaBookmark } from 'react-icons/fa';
+import { FaBars, FaHistory, FaTrash, FaSignOutAlt, FaBookmark, FaComments } from 'react-icons/fa';
 import StockSearch from './StockSearch';
 
 interface RightMenuProps {
   onSelectStock?: (stock: any) => void;
+  selectedStockCode?: string | null;
+  selectedStockName?: string | null;
 }
 
-export default function RightMenu({ onSelectStock }: RightMenuProps) {
+export default function RightMenu({ onSelectStock, selectedStockCode }: RightMenuProps) {
   const navigate = useNavigate();
   const [showStockSearch, setShowStockSearch] = useState(false);
 
@@ -27,11 +30,11 @@ export default function RightMenu({ onSelectStock }: RightMenuProps) {
   };
 
   return (
-    <aside className="sidebar right">
+    <Sidebar>
       <Button 
         variant="primary" 
         size="medium" 
-        onClick={() => navigate('/bookmarks')}
+        onClick={() => navigate('/admin/categories')}
       >
         <FaBars /> 카테고리
       </Button>
@@ -45,9 +48,9 @@ export default function RightMenu({ onSelectStock }: RightMenuProps) {
       </Button>
       
       {showStockSearch && (
-        <div style={{ marginTop: '12px' }}>
+        <SearchContainer>
           <StockSearch onSelectStock={handleStockSelect} />
-        </div>
+        </SearchContainer>
       )}
       
       <Button 
@@ -59,19 +62,25 @@ export default function RightMenu({ onSelectStock }: RightMenuProps) {
       </Button>
 
       <Button 
-        variant="secondary" 
-        size="medium" 
-        onClick={() => navigate('/mypage')}
-      >
-        <FaUser /> 마이페이지
-      </Button>
-
-      <Button 
         variant="primary" 
         size="medium" 
         onClick={() => navigate('/bookmarks')}
       >
         <FaBookmark /> 저장된 메시지
+      </Button>
+
+      <Button 
+        variant="primary" 
+        size="medium" 
+        onClick={() => {
+          if (selectedStockCode) {
+            navigate(`/discussion/${selectedStockCode}`)
+          } else {
+            navigate('/discussion')
+          }
+        }}
+      >
+        <FaComments /> 종목 토론
       </Button>
 
       <Button 
@@ -81,6 +90,34 @@ export default function RightMenu({ onSelectStock }: RightMenuProps) {
       >
         <FaSignOutAlt /> 로그아웃
       </Button>
-    </aside>
+    </Sidebar>
   );
 }
+
+const Sidebar = styled.aside`
+  width: 240px;
+  background: #ffffff;
+  border-left: 1px solid #e5e5e5;
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #d9d9e3;
+    border-radius: 3px;
+  }
+`;
+
+const SearchContainer = styled.div`
+  margin-top: 12px;
+`;

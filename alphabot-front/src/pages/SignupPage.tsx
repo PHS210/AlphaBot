@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
+import { AxiosError } from 'axios';
+import { signup as signupRequest } from '@/api/authClient';
 
 const SignupPage: React.FC = () => {
   const navigate = useNavigate();
@@ -11,6 +13,8 @@ const SignupPage: React.FC = () => {
     passwordConfirm: ''
   });
   const [errors, setErrors] = useState<{[key: string]: string}>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -25,6 +29,9 @@ const SignupPage: React.FC = () => {
         delete newErrors[name];
         return newErrors;
       });
+    }
+    if (submitError) {
+      setSubmitError(null);
     }
   };
 
@@ -50,8 +57,9 @@ const SignupPage: React.FC = () => {
     return newErrors;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitError(null);
     
     const newErrors = validateForm();
     
@@ -60,16 +68,61 @@ const SignupPage: React.FC = () => {
       return;
     }
 
-    // Mock: 아이디 중복 체크 (실제로는 서버에서 확인)
-    const existingIds = ['admin', 'test'];
-    if (existingIds.includes(formData.loginId)) {
-      setErrors({ loginId: '이미 사용 중인 아이디입니다.' });
-      return;
-    }
+    setIsSubmitting(true);
+    try {
+      await signupRequest({
+        login_id: formData.loginId,
+        username: formData.username,
+        password: formData.password,
+      });
 
-    // 회원가입 성공
-    alert('회원가입이 완료되었습니다.');
-    navigate('/login');
+      alert('회원가입이 완료되었습니다.');
+      navigate('/login');
+    } catch (error) {
+      let message = '회원가입 중 오류가 발생했습니다.';
+      if (error instanceof AxiosError) {
+        const data = error.response?.data;
+        
+        // FastAPI validation error (422)
+        if (error.response?.status === 422 && data?.detail) {
+          if (Array.isArray(data.detail)) {
+            // Pydantic validation errors
+            const errors = data.detail.map((err: any) => 
+              `${err.loc?.join(' > ') || 'Field'}: ${err.msg}`
+            ).join(', ');
+            message = `입력 오류: ${errors}`;
+          } else if (typeof data.detail === 'string') {
+            message = data.detail;
+          }
+        }
+        // Bad request (400)
+        else if (error.response?.status === 400) {
+          if (typeof data === 'string') {
+            message = data;
+          } else if (typeof data?.detail === 'string') {
+            message = data.detail;
+          }
+          
+          if (message.includes('아이디')) {
+            setErrors(prev => ({
+              ...prev,
+              loginId: message,
+            }));
+            setIsSubmitting(false);
+            return;
+          }
+        }
+        // Other errors
+        else if (typeof data === 'string') {
+          message = data;
+        } else if (typeof data?.detail === 'string') {
+          message = data.detail;
+        }
+      }
+      setSubmitError(message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -85,7 +138,7 @@ const SignupPage: React.FC = () => {
               value={formData.loginId}
               onChange={handleChange}
               placeholder="아이디를 입력하세요"
-              error={!!errors.loginId}
+              $error={!!errors.loginId}
             />
             {errors.loginId && <ErrorText>{errors.loginId}</ErrorText>}
           </InputGroup>
@@ -98,7 +151,7 @@ const SignupPage: React.FC = () => {
               value={formData.username}
               onChange={handleChange}
               placeholder="이름을 입력하세요"
-              error={!!errors.username}
+              $error={!!errors.username}
             />
             {errors.username && <ErrorText>{errors.username}</ErrorText>}
           </InputGroup>
@@ -111,7 +164,7 @@ const SignupPage: React.FC = () => {
               value={formData.password}
               onChange={handleChange}
               placeholder="비밀번호를 입력하세요"
-              error={!!errors.password}
+              $error={!!errors.password}
             />
             {errors.password && <ErrorText>{errors.password}</ErrorText>}
           </InputGroup>
@@ -124,12 +177,15 @@ const SignupPage: React.FC = () => {
               value={formData.passwordConfirm}
               onChange={handleChange}
               placeholder="비밀번호를 다시 입력하세요"
-              error={!!errors.passwordConfirm}
+              $error={!!errors.passwordConfirm}
             />
             {errors.passwordConfirm && <ErrorText>{errors.passwordConfirm}</ErrorText>}
           </InputGroup>
 
-          <SubmitButton type="submit">가입하기</SubmitButton>
+          {submitError && <GlobalError>{submitError}</GlobalError>}
+          <SubmitButton type="submit" disabled={isSubmitting}>
+            {isSubmitting ? '처리 중...' : '가입하기'}
+          </SubmitButton>
         </Form>
         
         <Footer>
@@ -182,16 +238,16 @@ const Label = styled.label`
   color: #555;
 `;
 
-const Input = styled.input<{ error?: boolean }>`
+const Input = styled.input<{ $error?: boolean }>`
   padding: 12px 16px;
-  border: 2px solid ${props => props.error ? '#e74c3c' : '#e0e0e0'};
+  border: 2px solid ${props => props.$error ? '#e74c3c' : '#e0e0e0'};
   border-radius: 8px;
   font-size: 14px;
   transition: border-color 0.3s;
 
   &:focus {
     outline: none;
-    border-color: ${props => props.error ? '#e74c3c' : '#667eea'};
+    border-color: ${props => props.$error ? '#e74c3c' : '#667eea'};
   }
 
   &::placeholder {
@@ -225,6 +281,13 @@ const SubmitButton = styled.button`
   &:active {
     transform: translateY(0);
   }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
 `;
 
 const Footer = styled.div`
@@ -242,6 +305,12 @@ const Footer = styled.div`
       text-decoration: underline;
     }
   }
+`;
+
+const GlobalError = styled.div`
+  text-align: center;
+  color: #e74c3c;
+  font-size: 14px;
 `;
 
 export default SignupPage;

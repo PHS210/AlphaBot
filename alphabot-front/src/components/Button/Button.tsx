@@ -1,23 +1,41 @@
-// src/components/Button/Button.tsx
+/**
+ * @file src/components/Button/Button.tsx
+ * @description ButtonStyle.ts에서 정의한 스타일을 적용하는 공통 버튼 컴포넌트입니다.
+ */
 
-import React, { type FC, type ButtonHTMLAttributes } from 'react';
-import { StyledButton } from './ButtonStyle.ts';
+import React from 'react';
+import { StyledButton } from './ButtonStyle'; // 👈 ButtonStyle.ts 임포트
 
-// 버튼이 받을 속성(props)의 타입을 정의합니다.
-// ButtonHTMLAttributes<HTMLButtonElement>를 확장하여 HTML <button> 태그의 모든 속성을 사용할 수 있게 합니다.
-interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'ghost'; // 버튼 스타일 종류
-  size?: 'small' | 'medium' | 'large'; // 버튼 크기
+/**
+ * @interface ButtonProps
+ * @description 공통 버튼 컴포넌트가 받을 props 타입 정의
+ */
+export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant: 'primary' | 'secondary' | 'ghost';
+  size: 'small' | 'medium' | 'large';
+  children: React.ReactNode;
+  as?: React.ElementType; 
+  to?: string;
 }
 
-const Button: FC<ButtonProps> = ({
-  children,
-  variant = 'primary',
-  size = 'medium',
-  ...props
+/**
+ * @component Button
+ */
+const Button: React.FC<ButtonProps> = ({ 
+  children, 
+  variant = 'primary', // 기본값
+  size = 'medium',   // 기본값
+  as,
+  ...rest // 👈 onClick, type, disabled, 'to' 등 나머지 모든 HTML 속성
 }) => {
   return (
-    <StyledButton variant={variant} size={size} {...props}>
+    <StyledButton 
+      // 👇 [수정] Transient Props($)로 전달
+      $variant={variant} 
+      $size={size} 
+      as={as} 
+      {...rest} 
+    >
       {children}
     </StyledButton>
   );
