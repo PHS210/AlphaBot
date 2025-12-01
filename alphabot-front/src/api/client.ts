@@ -2,9 +2,16 @@ export type ApiError = Error & { status?: number }
 
 const RAW_API_BASE_URL = ((import.meta as any).env?.VITE_API_BASE_URL ?? '').trim()
 
+const DEV_KNOWN_HOSTS = new Set([
+  'localhost',
+  '127.0.0.1',
+  '0.0.0.0',
+  'host.docker.internal',
+])
+
 const DEV_FALLBACK_BASE_URL =
   typeof window !== 'undefined' &&
-  window.location.hostname === 'localhost' &&
+  DEV_KNOWN_HOSTS.has(window.location.hostname) &&
   window.location.port === '5173'
     ? 'http://localhost:8080'
     : ''
