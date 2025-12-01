@@ -21,16 +21,27 @@ logging.getLogger("uvicorn").setLevel(logging.WARNING)
 logging.getLogger("uvicorn.error").setLevel(logging.WARNING)
 logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 
+def _parse_env_list(value: str | None) -> list[str]:
+    if not value:
+        return []
+    return [item.strip() for item in value.split(",") if item.strip()]
 
-# CORS 설정: 프론트엔드 개발 서버 접근 허용
+DEFAULT_CORS_ORIGINS = [
+    "http://localhost:5173",
+    "http://0.0.0.0:5173",
+    "http://localhost:8080",
+    "http://0.0.0.0:8080",
+]
+ADDITIONAL_CORS_ORIGINS = _parse_env_list(os.getenv("ADDITIONAL_CORS_ORIGINS"))
+ALLOWED_CORS_ORIGINS = [*DEFAULT_CORS_ORIGINS, *ADDITIONAL_CORS_ORIGINS]
+
+if ADDITIONAL_CORS_ORIGINS:
+    logger.warning("Allowing additional CORS origins: %s", ADDITIONAL_CORS_ORIGINS)
+
+# CORS 설정: 프론트엔드 접근 허용 (개발 + 배포)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://0.0.0.0:5173",
-        "http://localhost:8080",
-        "http://0.0.0.0:8080",
-    ],
+    allow_origins=ALLOWED_CORS_ORIGINS or ["http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -70,9 +81,7 @@ app.include_router(category.router, prefix="/api/categories", tags=["Categories"
 app.include_router(bookmark.router, prefix="/api/bookmarks", tags=["Bookmarks"])
 app.include_router(comment.router, prefix="/api/comments", tags=["Comments"])
 
-# 루트 경로 처리
-@app.get("/", include_in_schema=False)
-def serve_react_app_root():
+def _serve_frontend_index() -> FileResponse:
     if FRONTEND_INDEX_FILE.exists():
         return FileResponse(FRONTEND_INDEX_FILE)
     raise HTTPException(
@@ -82,3 +91,34 @@ def serve_react_app_root():
             "Run `npm run build` inside `alphabot-front` or set FRONTEND_BUILD_DIR."
         ),
     )
+
+def _resolve_frontend_file(request_path: str) -> Path | None:
+    if not request_path:
+        return FRONTEND_INDEX_FILE if FRONTEND_INDEX_FILE.exists() else None
+    if not FRONTEND_BUILD_DIR.exists():
+        return None
+    candidate_path = (FRONTEND_BUILD_DIR / request_path.lstrip("/")).resolve()
+    try:
+        candidate_path.relative_to(FRONTEND_BUILD_DIR.resolve())
+    except ValueError:
+        return None
+    if candidate_path.is_file():
+        return candidate_path
+    return None
+
+# 루트 경로 처리
+@app.get("/", include_in_schema=False)
+def serve_react_app_root():
+    return _serve_frontend_index()
+
+@app.get("/{full_path:path}", include_in_schema=False)
+def serve_frontend_spa(full_path: str):
+    normalized = full_path.strip()
+    if normalized.startswith("api/"):
+        raise HTTPException(status_code=404, detail="Not Found")
+
+    asset = _resolve_frontend_file(normalized)
+    if asset:
+        return FileResponse(asset)
+
+    return _serve_frontend_index()

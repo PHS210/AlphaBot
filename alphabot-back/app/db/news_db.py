@@ -24,7 +24,7 @@ def _build_news_db_url() -> Optional[str]:
 
     if all([user, password, host, port, name]):
         # psycopg v3 드라이버 사용 (requirements.txt 에 맞춤)
-        return f"postgresql+psycopg://{user}:{password}@{host}:{port}/{name}"
+        return f"postgresql+psycopg://{user}:{password}@{host}:{port}/{name}?sslmode=disable"
     return None
 
 
