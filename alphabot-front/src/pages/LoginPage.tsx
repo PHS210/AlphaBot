@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { login as loginRequest } from '@/api/authClient';
+
 const LoginPage: React.FC = () => {
     const [login_id, setLoginId] = useState('');
     const [password, setPassword] = useState('');
@@ -11,26 +13,9 @@ const LoginPage: React.FC = () => {
         event.preventDefault();
         setError('');
 
-        const formData = new URLSearchParams();
-        formData.append('username', login_id);
-        formData.append('password', password);
-
         try {
-            const response = await fetch('http://localhost:8080/api/login', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: formData,
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.detail || '로그인에 실패했습니다.');
-            }
-
-            const data = await response.json();
-            
+            const data = await loginRequest({ login_id, password });
+        
             console.log('로그인 성공! 받은 토큰:', data.access_token);
             
             localStorage.setItem('authToken', data.access_token);
