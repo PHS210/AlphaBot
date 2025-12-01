@@ -79,13 +79,18 @@ const MessageText = styled.div<{ role: 'bot' | 'user' }>`
   border-radius: 12px;
   word-break: break-word;
   
-  ${props => props.role === 'bot' ? `
+  ${props =>
+    props.role === 'bot'
+      ? `
     background: #f7f7f8;
     color: #202123;
     border-bottom-left-radius: 4px;
-  ` : `
+  `
+      : `
+    background: linear-gradient(135deg, #4169e1 0%, #5f7ef4 100%);
     color: #ffffff;
     border-bottom-right-radius: 4px;
+    box-shadow: 0 4px 12px rgba(65, 105, 225, 0.25);
   `}
   
   position: relative;
