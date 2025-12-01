@@ -8,16 +8,16 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { FaArrowLeft, FaBookmark, FaTrash, FaFolder, FaPlus, FaSyncAlt } from 'react-icons/fa';
-import { AxiosError } from 'axios';
+
 import { useQueryClient } from '@tanstack/react-query';
 
 // --- API 훅 및 타입 임포트 ---
 import { useAuth } from '@/hooks/useAuth';
 import { useCategories } from '@/hooks/useCategories';
 import { useCategoryMutations } from '@/hooks/useCategoryMutations';
-import { useSavedMessages, useBookmarkMutations } from '@/hooks/useSavedMessages'; 
-import { LoadingSpinner } from '@/components/common/LoadingSpinner'; 
-import type { SavedMessage } from '@/components/bookmark/bookmark.types'; 
+import { useSavedMessages } from '@/hooks/useSavedMessages';
+import { LoadingSpinner } from '@/components/common/LoadingSpinner';
+import type { SavedMessage } from '@/components/bookmark/bookmark.types';
 import type { Category } from '@/components/category/category.types';
 
 // ----------------------------------------------------------------------
@@ -31,8 +31,8 @@ interface BookmarkListProps {
   deletingId: number | null;
 }
 
-const BookmarkList: React.FC<BookmarkListProps> = ({ 
-  bookmarks, categories, onDelete, isDeleting, deletingId 
+const BookmarkList: React.FC<BookmarkListProps> = ({
+  bookmarks, categories, onDelete, isDeleting, deletingId
 }) => {
   if (!bookmarks || bookmarks.length === 0) {
     return (
@@ -47,7 +47,7 @@ const BookmarkList: React.FC<BookmarkListProps> = ({
     <ListWrapper>
       {bookmarks.map(bookmark => {
         const matchedCategory = categories.find(c => c.id === bookmark.categoryId);
-        
+
         return (
           <BookmarkCard key={bookmark.id}>
             <CardHeader>
@@ -55,7 +55,7 @@ const BookmarkList: React.FC<BookmarkListProps> = ({
                 <ChatTitle>{bookmark.chatTitle}</ChatTitle>
                 <DateText>{bookmark.createdAt}</DateText>
               </ChatInfo>
-              <DeleteButton 
+              <DeleteButton
                 onClick={() => onDelete(bookmark.id)}
                 disabled={isDeleting && deletingId === bookmark.id}
               >
@@ -63,7 +63,7 @@ const BookmarkList: React.FC<BookmarkListProps> = ({
               </DeleteButton>
             </CardHeader>
             <MessageContent>{bookmark.content}</MessageContent>
-            
+
             <CategoryBadge color={matchedCategory?.color || '#999'}>
               {matchedCategory?.title || '미분류'}
             </CategoryBadge>
@@ -80,24 +80,23 @@ const BookmarkList: React.FC<BookmarkListProps> = ({
 
 export const BookmarkPage: React.FC = () => {
   const navigate = useNavigate();
-  const { isAdmin } = useAuth(); 
+  const { isAdmin } = useAuth();
   const queryClient = useQueryClient();
-  
-  const [selectedCategory, setSelectedCategory] = useState(0); 
+
+  const [selectedCategory, setSelectedCategory] = useState(0);
   const [showNewCategoryModal, setShowNewCategoryModal] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
-  const [modalError, setModalError] = useState<string | null>(null); 
+  const [modalError, setModalError] = useState<string | null>(null);
 
   // --- 데이터 조회 ---
-  const { 
-    data: categoriesData, 
-    isLoading: categoriesLoading, 
-    isError: categoriesError,
-    error: categoriesErrorObject
+  const {
+    data: categoriesData,
+    isLoading: categoriesLoading,
+    isError: categoriesError
   } = useCategories({
     page: 1,
-    page_size: 99, 
-    search: undefined, 
+    page_size: 99,
+    search: undefined,
   });
 
   useEffect(() => {
@@ -106,13 +105,12 @@ export const BookmarkPage: React.FC = () => {
     }
   }, [categoriesData]);
 
-  const { 
-    data: bookmarksData, 
-    isLoading: bookmarksLoading, 
-    isError: bookmarksError,
-    error: bookmarksErrorObject
+  const {
+    data: bookmarksData,
+    isLoading: bookmarksLoading,
+    isError: bookmarksError
   } = useSavedMessages(selectedCategory);
-  
+
   const bookmarks = bookmarksData || [];
   const { createMutation, deleteMutation: deleteBookmarkMutation } = useCategoryMutations();
 
@@ -138,12 +136,12 @@ export const BookmarkPage: React.FC = () => {
       setModalError('카테고리 이름을 입력하세요.');
       return;
     }
-    
+
     setModalError(null);
 
     try {
       await createMutation.mutateAsync({ title: newCategoryName });
-      
+
       setNewCategoryName('');
       setShowNewCategoryModal(false);
       // alert('새 카테고리가 추가되었습니다.'); 
@@ -152,7 +150,7 @@ export const BookmarkPage: React.FC = () => {
       console.error('카테고리 생성 에러:', err);
 
       const error = err as any; // any로 변환하여 유연하게 속성 접근
-      
+
       // 1. axios 표준: error.response.status
       // 2. 일부 커스텀 클라이언트: error.status
       const status = error.response?.status || error.status;
@@ -169,10 +167,8 @@ export const BookmarkPage: React.FC = () => {
   };
 
   // --- 렌더링 준비 ---
-  const isAxiosError = (err: unknown): err is AxiosError => {
-    return (err as AxiosError)?.isAxiosError === true;
-  };
-  
+
+
   if (categoriesLoading || bookmarksLoading) {
     return (
       <Container style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
@@ -183,39 +179,39 @@ export const BookmarkPage: React.FC = () => {
 
   if (categoriesError || bookmarksError) {
     return (
-        <Container style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: 50 }}>
-            <div style={{ color: 'red', marginBottom: 20 }}>데이터 로딩 중 오류가 발생했습니다.</div>
-            <BackButton onClick={() => window.location.reload()}>새로고침</BackButton>
-        </Container>
+      <Container style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: 50 }}>
+        <div style={{ color: 'red', marginBottom: 20 }}>데이터 로딩 중 오류가 발생했습니다.</div>
+        <BackButton onClick={() => window.location.reload()}>새로고침</BackButton>
+      </Container>
     );
   }
 
   // 데이터 구조 유연하게 처리
-  let apiItems: any[] = []; 
+  let apiItems: any[] = [];
   if (categoriesData) {
     if (Array.isArray(categoriesData.categories)) {
-        apiItems = categoriesData.categories;
+      apiItems = categoriesData.categories;
     } else if (Array.isArray(categoriesData.items)) {
-        apiItems = categoriesData.items;
+      apiItems = categoriesData.items;
     } else if (Array.isArray(categoriesData)) {
-        apiItems = categoriesData;
+      apiItems = categoriesData;
     }
   }
 
   const categories: Category[] = [
-    { 
-      id: 0, 
-      title: '전체', 
-      color: '#667eea', 
-      item_count: bookmarks.length, 
-      created_at: '' 
+    {
+      id: 0,
+      title: '전체',
+      color: '#667eea',
+      item_count: bookmarks.length,
+      created_at: ''
     },
     ...apiItems.map(cat => ({
-        ...cat,
-        id: cat.id ?? cat.category_id ?? Math.floor(Math.random() * 100000), 
-        title: cat.title || '이름 없음',
-        color: cat.color || '#9b59b6', 
-        item_count: cat.item_count || 0 
+      ...cat,
+      id: cat.id ?? cat.category_id ?? Math.floor(Math.random() * 100000),
+      title: cat.title || '이름 없음',
+      color: cat.color || '#9b59b6',
+      item_count: cat.item_count || 0
     }))
   ];
 
@@ -232,10 +228,10 @@ export const BookmarkPage: React.FC = () => {
         <MainContent>
           <Sidebar>
             <SidebarHeader>
-                <SidebarTitle style={{ marginBottom: 0 }}>카테고리</SidebarTitle>
-                <RefreshButton onClick={handleRefreshCategories} title="목록 새로고침">
-                    <FaSyncAlt />
-                </RefreshButton>
+              <SidebarTitle style={{ marginBottom: 0 }}>카테고리</SidebarTitle>
+              <RefreshButton onClick={handleRefreshCategories} title="목록 새로고침">
+                <FaSyncAlt />
+              </RefreshButton>
             </SidebarHeader>
 
             {categories.map(cat => (
@@ -246,13 +242,13 @@ export const BookmarkPage: React.FC = () => {
                 onClick={() => setSelectedCategory(cat.id)}
               >
                 <FaFolder /> {cat.title}
-                {cat.id === 0 
-                 ? ` (${bookmarksData ? bookmarksData.length : 0})` 
-                 : ` (${cat.item_count})`
+                {cat.id === 0
+                  ? ` (${bookmarksData ? bookmarksData.length : 0})`
+                  : ` (${cat.item_count})`
                 }
               </CategoryItem>
             ))}
-            
+
             {isAdmin && (
               <AddCategoryButton onClick={() => setShowNewCategoryModal(true)}>
                 <FaPlus /> 새 카테고리
@@ -260,9 +256,9 @@ export const BookmarkPage: React.FC = () => {
             )}
           </Sidebar>
 
-          <BookmarkList 
-            bookmarks={bookmarks} 
-            categories={categories} 
+          <BookmarkList
+            bookmarks={bookmarks}
+            categories={categories}
             onDelete={handleDeleteBookmark}
             isDeleting={deleteBookmarkMutation.isPending}
             deletingId={deleteBookmarkMutation.variables as number}
@@ -282,14 +278,14 @@ export const BookmarkPage: React.FC = () => {
               onKeyPress={(e) => e.key === 'Enter' && handleAddCategory()}
               autoFocus
             />
-            
+
             {modalError && <p style={{ color: 'red', fontSize: '14px', marginBottom: '15px' }}>{modalError}</p>}
-            
+
             <ModalButtons>
-              <ModalButton 
-                $primary 
+              <ModalButton
+                $primary
                 onClick={handleAddCategory}
-                disabled={createMutation.isPending} 
+                disabled={createMutation.isPending}
               >
                 {createMutation.isPending ? '추가 중...' : '추가'}
               </ModalButton>

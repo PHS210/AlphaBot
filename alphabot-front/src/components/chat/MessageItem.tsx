@@ -1,11 +1,23 @@
 import styled from 'styled-components'
 import type { ChatMessage } from '@/types/chat'
+import { FaRegStar } from 'react-icons/fa'
+import { createBookmark } from '@/api/bookmarkClient'
 
 type Props = {
   message: ChatMessage
 }
 
 export default function MessageItem({ message }: Props) {
+  const handleBookmark = async () => {
+    try {
+      await createBookmark(Number(message.id))
+      alert('북마크에 추가되었습니다.')
+    } catch (error) {
+      console.error('Failed to bookmark message:', error)
+      alert('북마크 추가에 실패했습니다.')
+    }
+  }
+
   return (
     <MessageWrapper role={message.role}>
       <MessageContent>
@@ -14,7 +26,14 @@ export default function MessageItem({ message }: Props) {
             <BotIcon aria-hidden>💼</BotIcon>
           </IconWrapper>
         )}
-        <MessageText role={message.role}>{message.text}</MessageText>
+        <MessageText role={message.role}>
+          {message.text}
+          {message.role === 'bot' && (
+            <BookmarkButton onClick={handleBookmark} title="북마크에 추가">
+              <FaRegStar />
+            </BookmarkButton>
+          )}
+        </MessageText>
       </MessageContent>
     </MessageWrapper>
   )
@@ -65,8 +84,32 @@ const MessageText = styled.div<{ role: 'bot' | 'user' }>`
     color: #202123;
     border-bottom-left-radius: 4px;
   ` : `
-    background: #4169e1;
     color: #ffffff;
     border-bottom-right-radius: 4px;
   `}
+  
+  position: relative;
+  &:hover button {
+    opacity: 1;
+  }
+`;
+
+const BookmarkButton = styled.button`
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: transparent;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  padding: 4px;
+  opacity: 0;
+  transition: opacity 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    color: #f59e0b;
+  }
 `;

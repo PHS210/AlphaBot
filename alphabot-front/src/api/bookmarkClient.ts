@@ -40,3 +40,11 @@ export const listSavedMessages = async (categoryId: number): Promise<SavedMessag
 export const deleteSavedMessage = async (id: number): Promise<void> => {
   await apiFetch<void>(`${API_BASE_URL}/${id}`, { method: 'DELETE' });
 };
+
+export const createBookmark = async (messageId: number, categoryId?: number): Promise<SavedMessage> => {
+  const response = await apiFetch<BookmarkListResponse['bookmarks'][number]>(API_BASE_URL, {
+    method: 'POST',
+    body: JSON.stringify({ messages_id: messageId, category_id: categoryId }),
+  });
+  return normalizeBookmark(response);
+};
