@@ -15,7 +15,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { useCategories } from '@/hooks/useCategories';
 import { useCategoryMutations } from '@/hooks/useCategoryMutations';
-import { useSavedMessages } from '@/hooks/useSavedMessages';
+import { useSavedMessages, useBookmarkMutations } from '@/hooks/useSavedMessages';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import type { SavedMessage } from '@/components/bookmark/bookmark.types';
 import type { Category } from '@/components/category/category.types';
@@ -111,8 +111,9 @@ export const BookmarkPage: React.FC = () => {
     isError: bookmarksError
   } = useSavedMessages(selectedCategory);
 
+  const { createMutation } = useCategoryMutations();
+  const { deleteMutation: deleteBookmarkMutation } = useBookmarkMutations();
   const bookmarks = bookmarksData || [];
-  const { createMutation, deleteMutation: deleteBookmarkMutation } = useCategoryMutations();
 
   // --- 핸들러 함수 ---
   const handleRefreshCategories = () => {
@@ -261,7 +262,7 @@ export const BookmarkPage: React.FC = () => {
             categories={categories}
             onDelete={handleDeleteBookmark}
             isDeleting={deleteBookmarkMutation.isPending}
-            deletingId={deleteBookmarkMutation.variables as number}
+            deletingId={deleteBookmarkMutation.variables ?? null}
           />
         </MainContent>
       </Content>
