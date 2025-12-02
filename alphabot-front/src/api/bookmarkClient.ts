@@ -48,3 +48,11 @@ export const createBookmark = async (messageId: number, categoryId?: number): Pr
   });
   return normalizeBookmark(response);
 };
+
+export const updateBookmark = async (bookmarkId: number, categoryId: number | null): Promise<SavedMessage> => {
+  const response = await apiFetch<BookmarkListResponse['bookmarks'][number]>(`${API_BASE_URL}/${bookmarkId}`, {
+    method: 'PUT',
+    body: JSON.stringify({ category_id: categoryId }),
+  });
+  return normalizeBookmark(response);
+};

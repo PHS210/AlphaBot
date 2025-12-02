@@ -18,6 +18,7 @@ class Category(BaseModel):
     category_id: int
     user_id: int  # user_id 필드 추가
     title: str
+    item_count: Optional[int] = 0 # item_count 필드 추가
     created_at: datetime
 
     class Config:

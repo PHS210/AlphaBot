@@ -15,7 +15,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { useCategories } from '@/hooks/useCategories';
 import { useCategoryMutations } from '@/hooks/useCategoryMutations';
-import { useSavedMessages, useBookmarkMutations } from '@/hooks/useSavedMessages';
+import { useSavedMessages, useBookmarkMutations, useBookmarkUpdateMutation } from '@/hooks/useSavedMessages';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import type { SavedMessage } from '@/components/bookmark/bookmark.types';
 import type { Category } from '@/components/category/category.types';
@@ -27,12 +27,13 @@ interface BookmarkListProps {
   bookmarks: SavedMessage[];
   categories: Category[];
   onDelete: (id: number) => void;
+  onUpdateCategory: (bookmarkId: number, categoryId: number) => void;
   isDeleting: boolean;
   deletingId: number | null;
 }
 
 const BookmarkList: React.FC<BookmarkListProps> = ({
-  bookmarks, categories, onDelete, isDeleting, deletingId
+  bookmarks, categories, onDelete, onUpdateCategory, isDeleting, deletingId
 }) => {
   if (!bookmarks || bookmarks.length === 0) {
     return (
@@ -55,12 +56,31 @@ const BookmarkList: React.FC<BookmarkListProps> = ({
                 <ChatTitle>{bookmark.chatTitle}</ChatTitle>
                 <DateText>{bookmark.createdAt}</DateText>
               </ChatInfo>
-              <DeleteButton
-                onClick={() => onDelete(bookmark.id)}
-                disabled={isDeleting && deletingId === bookmark.id}
-              >
-                <FaTrash />
-              </DeleteButton>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <select
+                  value={bookmark.categoryId || -1}
+                  onChange={(e) => onUpdateCategory(bookmark.id, Number(e.target.value))}
+                  style={{
+                    padding: '4px 8px',
+                    borderRadius: '4px',
+                    border: '1px solid #ddd',
+                    fontSize: '12px',
+                    color: '#555',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <option value={-1}>미분류</option>
+                  {categories.filter(c => c.id !== 0).map(c => (
+                    <option key={c.id} value={c.id}>{c.title}</option>
+                  ))}
+                </select>
+                <DeleteButton
+                  onClick={() => onDelete(bookmark.id)}
+                  disabled={isDeleting && deletingId === bookmark.id}
+                >
+                  <FaTrash />
+                </DeleteButton>
+              </div>
             </CardHeader>
             <MessageContent>{bookmark.content}</MessageContent>
 
@@ -128,6 +148,37 @@ export const BookmarkPage: React.FC = () => {
       } catch (error) {
         alert('삭제에 실패했습니다.');
       }
+    }
+  }
+
+
+  const { updateMutation } = useBookmarkUpdateMutation();
+
+  const handleUpdateCategory = async (bookmarkId: number, newCategoryId: number) => {
+    try {
+      // 0 means "Uncategorized" in the UI for selection, but API expects null for uncategorized if that's how it's set up.
+      // However, looking at the backend schema: category_id: Optional[int] = Field(None, description="새 카테고리 ID (null로 보내면 미분류로 이동)")
+      // And the frontend client: categoryId: number | null
+      // So we should pass null if newCategoryId is 0 (assuming 0 is used for "Uncategorized" or "All" in some contexts, but let's check the categories list).
+      // In the categories list, id 0 is "All". But for assignment, we probably want "Uncategorized" which might be null or a specific ID.
+      // Let's look at how categories are mapped.
+      // In BookmarkPage:
+      // const categories: Category[] = [ { id: 0, title: '전체', ... }, ...apiItems... ]
+      // So 0 is "All". We probably shouldn't allow assigning to "All".
+      // We need to know what ID "Uncategorized" has.
+      // If the backend treats null as Uncategorized, we should pass null.
+      // Let's assume for now that we will pass the categoryId directly, and if it's a special value we handle it.
+      // But wait, the UI usually needs a way to set "No Category".
+      // Let's check if there is an explicit "Uncategorized" category in the list from API.
+      // If not, we might need to add an option for "Uncategorized" (null).
+
+      const targetCategoryId = newCategoryId === -1 ? null : newCategoryId; // Let's use -1 for Uncategorized in the UI dropdown if needed.
+
+      await updateMutation.mutateAsync({ bookmarkId, categoryId: targetCategoryId });
+      // alert('카테고리가 변경되었습니다.');
+    } catch (error) {
+      console.error('카테고리 변경 실패:', error);
+      alert('카테고리 변경에 실패했습니다.');
     }
   };
 
@@ -261,6 +312,7 @@ export const BookmarkPage: React.FC = () => {
             bookmarks={bookmarks}
             categories={categories}
             onDelete={handleDeleteBookmark}
+            onUpdateCategory={handleUpdateCategory}
             isDeleting={deleteBookmarkMutation.isPending}
             deletingId={deleteBookmarkMutation.variables ?? null}
           />

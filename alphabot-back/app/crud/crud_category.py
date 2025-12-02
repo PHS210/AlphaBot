@@ -56,7 +56,13 @@ class CRUDCategory(CRUDBase[Category, CategoryCreate, CategoryUpdate]):
         else:
             query = query.order_by(Category.created_at.desc())
             
-        return query.offset(skip).limit(limit).all()
+        categories = query.offset(skip).limit(limit).all()
+        
+        # item_count 계산
+        for cat in categories:
+            cat.item_count = len(cat.bookmarks)
+            
+        return categories
 
     def get_count_by_user(self, db: Session, *, user_id: int) -> int:
         """특정 사용자의 카테고리 총 개수 조회 (페이지네이션용)"""
