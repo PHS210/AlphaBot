@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { listSavedMessages, deleteSavedMessage } from '@/api/bookmarkClient';
+import { CATEGORY_QUERY_KEYS } from '@/hooks/useCategories';
+import { listSavedMessages, deleteSavedMessage, updateBookmark } from '@/api/bookmarkClient';
 
 // 쿼리 키 정의
 export const MESSAGE_QUERY_KEYS = {
@@ -32,9 +33,26 @@ export const useBookmarkMutations = () => {
       queryClient.invalidateQueries({ queryKey: MESSAGE_QUERY_KEYS.all });
       // 카테고리 목록의 'item_count'도 변경되었을 수 있으므로
       // 카테고리 쿼리도 무효화합니다. (중요)
-      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      queryClient.invalidateQueries({ queryKey: CATEGORY_QUERY_KEYS.all });
     },
   });
 
   return { deleteMutation };
+};
+
+
+
+export const useBookmarkUpdateMutation = () => {
+  const queryClient = useQueryClient();
+
+  const updateMutation = useMutation({
+    mutationFn: ({ bookmarkId, categoryId }: { bookmarkId: number; categoryId: number | null }) =>
+      updateBookmark(bookmarkId, categoryId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: MESSAGE_QUERY_KEYS.all });
+      queryClient.invalidateQueries({ queryKey: CATEGORY_QUERY_KEYS.all });
+    },
+  });
+
+  return { updateMutation };
 };
