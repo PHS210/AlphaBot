@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { FormEvent, KeyboardEvent } from 'react'
 import styled from 'styled-components'
+import { FaTrash } from 'react-icons/fa'
 import * as chatApi from '@/api/chat'
 
 interface StockLike {
@@ -141,6 +142,19 @@ export default function LeftSidebar({ selectedStockCode, onSelectStock }: Props)
     }
   }
 
+  const handleMoveToTrash = async (chatId: number) => {
+    if (!window.confirm('이 채팅방을 휴지통으로 이동하시겠습니까?')) {
+      return
+    }
+    try {
+      await chatApi.updateChat(chatId, { trash_can: 'in' })
+      await fetchChats()
+    } catch (err: any) {
+      console.error(err)
+      alert('채팅방을 휴지통으로 이동하지 못했습니다.')
+    }
+  }
+
   const handleCardKeyDown = (
     event: KeyboardEvent<HTMLDivElement>,
     chat: chatApi.BackendChat,
@@ -182,8 +196,8 @@ export default function LeftSidebar({ selectedStockCode, onSelectStock }: Props)
         </Field>
         <FormActions>
           <NewChatButton type="submit" disabled={creating}>
-        {creating ? '생성 중...' : '+ 새 채팅'}
-      </NewChatButton>
+            {creating ? '생성 중...' : '+ 새 채팅'}
+          </NewChatButton>
           <SecondaryButton type="button" onClick={resetNewChatForm} disabled={creating}>
             초기화
           </SecondaryButton>
@@ -233,8 +247,8 @@ export default function LeftSidebar({ selectedStockCode, onSelectStock }: Props)
             </RenameForm>
           ) : (
             <>
-          <ChatTitle>{chat.title || chat.stock_code}</ChatTitle>
-          <ChatMeta>{chat.stock_code}</ChatMeta>
+              <ChatTitle>{chat.title || chat.stock_code}</ChatTitle>
+              <ChatMeta>{chat.stock_code}</ChatMeta>
               <CardActions>
                 <EditButton
                   type="button"
@@ -245,14 +259,45 @@ export default function LeftSidebar({ selectedStockCode, onSelectStock }: Props)
                 >
                   제목 수정
                 </EditButton>
+                <DeleteButton
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    handleMoveToTrash(chat.chat_id)
+                  }}
+                >
+                  <FaTrash />
+                </DeleteButton>
               </CardActions>
             </>
           )}
         </ChatCard>
       ))}
+      <TrashLink onClick={() => window.location.href = '/trash'}>
+        <FaTrash /> 휴지통
+      </TrashLink>
     </Sidebar>
   )
 }
+
+const TrashLink = styled.button`
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  background: transparent;
+  border: none;
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.2s;
+
+  &:hover {
+    color: #ef4444;
+  }
+`;
 
 const Sidebar = styled.aside`
   width: 280px;
@@ -547,6 +592,28 @@ const EditButton = styled.button`
 
   &:active {
     background: rgba(65, 105, 225, 0.2);
+  }
+`;
+
+const DeleteButton = styled.button`
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+
+  &:hover {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+  }
+
+  &:active {
+    background: rgba(239, 68, 68, 0.2);
   }
 `;
 
