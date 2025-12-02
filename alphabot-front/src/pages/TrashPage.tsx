@@ -1,120 +1,97 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { FaArrowLeft, FaTrash, FaUndo, FaTrashRestore } from 'react-icons/fa';
-
-interface TrashItem {
-  id: number;
-  type: 'chat' | 'bookmark';
-  title: string;
-  content?: string;
-  deletedAt: string;
-}
+import * as chatApi from '@/api/chat';
 
 const TrashPage: React.FC = () => {
   const navigate = useNavigate();
-  
-  const [trashedItems, setTrashedItems] = useState<TrashItem[]>([
-    {
-      id: 1,
-      type: 'chat',
-      title: 'MSFT 관련된 내용 질문',
-      deletedAt: '2024-09-15'
-    },
-    {
-      id: 2,
-      type: 'bookmark',
-      title: 'AAPL 투자 전략',
-      content: '장기 투자 관점에서 AAPL은 여전히 매력적인 종목입니다...',
-      deletedAt: '2024-09-14'
-    },
-    {
-      id: 3,
-      type: 'chat',
-      title: 'NVDA 주가 분석',
-      deletedAt: '2024-09-13'
-    },
-    {
-      id: 4,
-      type: 'bookmark',
-      title: 'S&P 500 시장 전망',
-      content: '2024년 하반기 시장 전망에 대한 분석입니다...',
-      deletedAt: '2024-09-12'
-    },
-  ]);
-
+  const [trashedChats, setTrashedChats] = useState<chatApi.BackendChat[]>([]);
+  const [loading, setLoading] = useState(false);
   const [selectedItems, setSelectedItems] = useState<number[]>([]);
 
+  const fetchTrashedChats = useCallback(async () => {
+    setLoading(true);
+    try {
+      const allChats = await chatApi.listChats();
+      // trash_can이 'in'인 채팅방만 필터링
+      const trashed = allChats.filter(chat => chat.trash_can === 'in');
+      setTrashedChats(trashed);
+    } catch (error) {
+      console.error('Failed to fetch trashed chats:', error);
+      alert('휴지통 목록을 불러오지 못했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchTrashedChats();
+  }, [fetchTrashedChats]);
+
   const handleSelectItem = (id: number) => {
-    setSelectedItems(prev => 
-      prev.includes(id) 
+    setSelectedItems(prev =>
+      prev.includes(id)
         ? prev.filter(itemId => itemId !== id)
         : [...prev, id]
     );
   };
 
   const handleSelectAll = () => {
-    if (selectedItems.length === trashedItems.length) {
+    if (selectedItems.length === trashedChats.length) {
       setSelectedItems([]);
     } else {
-      setSelectedItems(trashedItems.map(item => item.id));
+      setSelectedItems(trashedChats.map(chat => chat.chat_id));
     }
   };
 
-  const handleRestore = (id: number) => {
-    if (window.confirm('이 항목을 복원하시겠습니까?')) {
-      setTrashedItems(prev => prev.filter(item => item.id !== id));
-      setSelectedItems(prev => prev.filter(itemId => itemId !== id));
-      alert('항목이 성공적으로 복원되었습니다.');
+  const handleRestore = async (chatId: number) => {
+    if (!window.confirm('이 채팅방을 복원하시겠습니까?')) {
+      return;
+    }
+    try {
+      await chatApi.updateChat(chatId, { trash_can: 'out' });
+      await fetchTrashedChats();
+      setSelectedItems(prev => prev.filter(id => id !== chatId));
+      alert('채팅방이 복원되었습니다.');
+    } catch (error) {
+      console.error('Failed to restore chat:', error);
+      alert('채팅방을 복원하지 못했습니다.');
     }
   };
 
-  const handleRestoreSelected = () => {
+  const handleRestoreSelected = async () => {
     if (selectedItems.length === 0) {
       alert('복원할 항목을 선택해주세요.');
       return;
     }
-    
-    if (window.confirm(`선택한 ${selectedItems.length}개의 항목을 복원하시겠습니까?`)) {
-      setTrashedItems(prev => prev.filter(item => !selectedItems.includes(item.id)));
+
+    if (!window.confirm(`선택한 ${selectedItems.length}개의 채팅방을 복원하시겠습니까?`)) {
+      return;
+    }
+
+    try {
+      // 병렬로 복원 요청 처리
+      await Promise.all(selectedItems.map(chatId =>
+        chatApi.updateChat(chatId, { trash_can: 'out' })
+      ));
+      await fetchTrashedChats();
       setSelectedItems([]);
       alert('선택한 항목이 복원되었습니다.');
+    } catch (error) {
+      console.error('Failed to restore selected chats:', error);
+      alert('일부 항목을 복원하지 못했습니다.');
     }
   };
 
+  // 백엔드에서 영구 삭제를 지원하지 않으므로 UI에서 숨김 처리
+  /*
   const handleDelete = (id: number) => {
     if (window.confirm('이 항목을 영구적으로 삭제하시겠습니까?\n삭제된 항목은 복구할 수 없습니다.')) {
-      setTrashedItems(prev => prev.filter(item => item.id !== id));
-      setSelectedItems(prev => prev.filter(itemId => itemId !== id));
-      alert('항목이 영구적으로 삭제되었습니다.');
+      // API call to delete permanently
     }
   };
-
-  const handleDeleteSelected = () => {
-    if (selectedItems.length === 0) {
-      alert('삭제할 항목을 선택해주세요.');
-      return;
-    }
-    
-    if (window.confirm(`선택한 ${selectedItems.length}개의 항목을 영구적으로 삭제하시겠습니까?\n삭제된 항목은 복구할 수 없습니다.`)) {
-      setTrashedItems(prev => prev.filter(item => !selectedItems.includes(item.id)));
-      setSelectedItems([]);
-      alert('선택한 항목이 영구적으로 삭제되었습니다.');
-    }
-  };
-
-  const handleEmptyTrash = () => {
-    if (trashedItems.length === 0) {
-      alert('휴지통이 이미 비어있습니다.');
-      return;
-    }
-
-    if (window.confirm('휴지통을 비우시겠습니까?\n모든 항목이 영구적으로 삭제되며 복구할 수 없습니다.')) {
-      setTrashedItems([]);
-      setSelectedItems([]);
-      alert('휴지통이 비워졌습니다.');
-    }
-  };
+  */
 
   return (
     <Container>
@@ -125,16 +102,16 @@ const TrashPage: React.FC = () => {
           </BackButton>
           <TitleSection>
             <Title><FaTrash /> 휴지통</Title>
-            <ItemCount>{trashedItems.length}개의 항목</ItemCount>
+            <ItemCount>{trashedChats.length}개의 항목</ItemCount>
           </TitleSection>
         </Header>
 
-        {trashedItems.length > 0 && (
+        {trashedChats.length > 0 && (
           <ActionBar>
             <LeftActions>
               <Checkbox
                 type="checkbox"
-                checked={selectedItems.length === trashedItems.length && trashedItems.length > 0}
+                checked={selectedItems.length === trashedChats.length && trashedChats.length > 0}
                 onChange={handleSelectAll}
               />
               <SelectAllText onClick={handleSelectAll}>
@@ -145,50 +122,55 @@ const TrashPage: React.FC = () => {
               <ActionButton disabled={selectedItems.length === 0} onClick={handleRestoreSelected}>
                 <FaUndo /> 선택 복원
               </ActionButton>
+              {/* 영구 삭제 기능 미지원으로 숨김 */}
+              {/* 
               <ActionButton danger disabled={selectedItems.length === 0} onClick={handleDeleteSelected}>
                 <FaTrash /> 선택 삭제
               </ActionButton>
               <ActionButton danger onClick={handleEmptyTrash}>
                 <FaTrash /> 휴지통 비우기
-              </ActionButton>
+              </ActionButton> 
+              */}
             </RightActions>
           </ActionBar>
         )}
 
-        {trashedItems.length === 0 ? (
+        {loading ? (
+          <EmptyState>
+            <EmptyText>로딩 중...</EmptyText>
+          </EmptyState>
+        ) : trashedChats.length === 0 ? (
           <EmptyState>
             <FaTrash size={64} color="#ddd" />
             <EmptyText>휴지통이 비어있습니다.</EmptyText>
-            <EmptySubText>삭제된 항목이 여기에 표시됩니다.</EmptySubText>
+            <EmptySubText>삭제된 채팅방이 여기에 표시됩니다.</EmptySubText>
           </EmptyState>
         ) : (
           <ItemList>
-            {trashedItems.map(item => (
-              <ItemCard key={item.id} selected={selectedItems.includes(item.id)}>
+            {trashedChats.map(chat => (
+              <ItemCard key={chat.chat_id} selected={selectedItems.includes(chat.chat_id)}>
                 <ItemHeader>
                   <Checkbox
                     type="checkbox"
-                    checked={selectedItems.includes(item.id)}
-                    onChange={() => handleSelectItem(item.id)}
+                    checked={selectedItems.includes(chat.chat_id)}
+                    onChange={() => handleSelectItem(chat.chat_id)}
                   />
                   <ItemInfo>
-                    <ItemType type={item.type}>
-                      {item.type === 'chat' ? '채팅방' : '북마크'}
-                    </ItemType>
-                    <ItemTitle>{item.title}</ItemTitle>
-                    <DeletedDate>삭제일: {item.deletedAt}</DeletedDate>
+                    <ItemType type="chat">채팅방</ItemType>
+                    <ItemTitle>{chat.title || chat.stock_code}</ItemTitle>
+                    <DeletedDate>종목코드: {chat.stock_code}</DeletedDate>
                   </ItemInfo>
                 </ItemHeader>
-                {item.content && (
-                  <ItemContent>{item.content}</ItemContent>
-                )}
                 <ItemActions>
-                  <RestoreButton onClick={() => handleRestore(item.id)}>
+                  <RestoreButton onClick={() => handleRestore(chat.chat_id)}>
                     <FaTrashRestore /> 복원
                   </RestoreButton>
-                  <DeleteButton onClick={() => handleDelete(item.id)}>
+                  {/* 영구 삭제 버튼 숨김 */}
+                  {/* 
+                  <DeleteButton onClick={() => handleDelete(chat.chat_id)}>
                     <FaTrash /> 영구 삭제
-                  </DeleteButton>
+                  </DeleteButton> 
+                  */}
                 </ItemActions>
               </ItemCard>
             ))}
@@ -368,17 +350,6 @@ const DeletedDate = styled.p`
   color: #999;
 `;
 
-const ItemContent = styled.p`
-  font-size: 14px;
-  color: #666;
-  line-height: 1.5;
-  margin-left: 33px;
-  margin-bottom: 12px;
-  padding: 12px;
-  background: #f9f9f9;
-  border-radius: 8px;
-`;
-
 const ItemActions = styled.div`
   display: flex;
   gap: 10px;
@@ -404,6 +375,7 @@ const RestoreButton = styled.button`
   }
 `;
 
+/*
 const DeleteButton = styled.button`
   display: flex;
   align-items: center;
@@ -422,6 +394,7 @@ const DeleteButton = styled.button`
     background: #fdd;
   }
 `;
+*/
 
 const EmptyState = styled.div`
   display: flex;
