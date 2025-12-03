@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import styled from 'styled-components'
 import type { ChatMessage } from '@/types/chat'
@@ -24,6 +24,15 @@ export default function ChatArea({ stockCode }: Props) {
   const [input, setInput] = useState('')
   const [isSending, setIsSending] = useState(false)
   const navigate = useNavigate()
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  useEffect(() => {
+    scrollToBottom()
+  }, [messages])
 
   const canChat = Boolean(stockCode)
 
@@ -146,6 +155,7 @@ export default function ChatArea({ stockCode }: Props) {
         {messages.map((m) => (
           <MessageItem key={m.id} message={m} />
         ))}
+        <div ref={messagesEndRef} />
       </MessagesArea>
       <InputWrapper>
         <ChatInput
